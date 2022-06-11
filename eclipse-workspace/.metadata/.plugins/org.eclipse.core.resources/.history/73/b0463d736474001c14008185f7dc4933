@@ -1,0 +1,46 @@
+package utilities;
+
+import org.openqa.selenium.By;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.support.ui.Select;
+
+public class Commanutilites {
+	
+	public static WebDriver driver;
+	
+	public static void firstDroppown(By element,String visabletext) {
+		WebElement stores= driver.findElement(element);
+		stores.click();
+		Select action =new Select(stores);
+		action.selectByVisibleText(visabletext);
+		
+	}
+	
+	public static String gettext(By element) {
+		String elements = driver.findElement(element).getText();
+		return elements;
+	}
+	
+	public static boolean isElementpresent(By element) {
+		return true;
+		
+	}
+	
+	public static String gettextboxvalue(By element) {
+		//By xpath = By.xpath("//id[text()=''");
+			if(isElementpresent(element)) {
+				WebElement elements =driver.findElement(element);
+				String attribute = elements.getAttribute("value");
+				System.out.println("Captured text: "+ attribute);
+				return attribute;
+			}
+			return null;
+		
+		
+	}
+	
+	
+
+}

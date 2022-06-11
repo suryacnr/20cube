@@ -1,0 +1,2775 @@
+package pages;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.InputStreamReader;
+import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.Month;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.openqa.selenium.By;
+import org.openqa.selenium.ElementNotVisibleException;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.Keys;
+import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Actions;
+import org.openqa.selenium.support.ui.Select;
+//import org.seleniumhq.jetty9.server.handler.BufferedResponseHandler;
+
+import baseClass.BaseClass;
+import iSAFE.ApplicationKeywords;
+import iSAFE.GOR;
+
+public class CommonUtilities extends ApplicationKeywords {
+
+	public CommonUtilities(BaseClass obj) {
+		super(obj);
+	}
+
+
+	public void clickOnSubMenu(String mainMenu, String subMenu) {
+		try {
+			String subMenu_Validation = subMenu + " validation#xpath=//ul[contains(@class,'sidebar-menu')]//span[text()='"+mainMenu+"']/ancestor::li//span[text()='"+subMenu+"']/..//parent::li";
+			String submenu = subMenu + " submenu of " + mainMenu
+					+ "#xpath=//ul[contains(@class,'sidebar-menu')]//span[text()='" + mainMenu
+					+ "']/parent::a/following-sibling::ul//span[text()='"+subMenu+"']";
+
+			if(isElementDisplayed(submenu,10)) {
+				scrollToElement(submenu);
+				clickOn(submenu);
+			}
+				
+			else {
+				testStepFailed(subMenu+" is not present.");
+				highLighterMethod(subMenu_Validation);
+			}
+			String current_Stattus=getAttributeValue(subMenu_Validation, "class");
+			if(current_Stattus.contains("active")) 
+			{
+				testStepPassed(subMenu+" is opened.");
+			}
+			else {
+				testStepFailed(subMenu+" is not opened.");
+				highLighterMethod(subMenu_Validation);
+			}
+
+		} catch (Exception e) {
+			testStepFailed("Failed to click on submenu.");
+			writeToLogFile("ERROR", "Failed to click on submenu. Error: " + e.getMessage());
+		}
+	}
+
+	public void clickOnMainMenu(String sideNavigationName) {
+		driver.manage().timeouts().implicitlyWait(2, TimeUnit.SECONDS);
+		String sideBar_Highlight = sideNavigationName+"#xpath=//ul[contains(@class,'sidebar-menu')]";
+		try {
+			//System.out.println();
+			String id="#id=sidebar";
+			String sidebar_Collapse_Status = "sidebar_Collapse#xpath=//div[@class='navbar-inner']//i[@class='collapse-icon fa fa-bars']/parent::div[contains(@class,'sidebar-collapse')]";
+			String sideBar = sideNavigationName+"#xpath=//ul[contains(@class,'sidebar-menu')]//span[text()='"+sideNavigationName+"']//parent::a//parent::li";
+			String getSidebarStatus = getAttributeValue(id, "class");
+			waitForAngularLoad();
+			if(getSidebarStatus.contains("menu-compact")) {
+				clickOn(sidebar_Collapse_Status);
+			}
+
+			String getCurrentStatus = getAttributeValue(sideBar, "class");
+			if(isElementDisplayed(sideBar, 2) && !getCurrentStatus.contains("open") && !getCurrentStatus.contains("active")) {
+				clickOn(sideBar);
+			}else if(isElementDisplayed(sideBar, 2)) {
+				testStepInfo(sideNavigationName+" is already expanded.");
+				return;
+			}
+			else {
+				testStepFailed("Failed to display side navigation within: "+ implicitlyWaitTime+" seconds");
+				highLighterMethod(sideBar_Highlight);
+				return;
+			}
+
+
+			if(isElementDisplayed(sideBar, implicitlyWaitTime)) {
+				String gettingClassAttribute = getAttributeValue(sideBar, "class");
+				if(gettingClassAttribute.contains("open")) 
+				{
+					testStepPassed(sideNavigationName+" is opened.");
+				}else if(gettingClassAttribute.contains("active")) {
+					testStepPassed(sideNavigationName+" is clicked.");
+				}else {
+					testStepFailed(sideNavigationName+" is not expanded/clicked");
+					highLighterMethod(sideBar);
+				}
+			}
+
+
+		}
+		catch (Exception e) {
+			highLighterMethod(sideBar_Highlight);
+			testStepFailed("Failed to display side navigation.");
+			writeToLogFile("ERROR", "Failed to display side navigation.ERROR: "+e.getMessage());
+		}
+	}
+
+
+	/**
+	 * Description: Method to verify if expected text is already selected in drop down
+	 * @author: Abhilasha
+	 * @param: labelName
+	 * @param: expectedname
+	 * @return: status
+	 */
+	public boolean verifyTextAlreadySelectedInDropDown(String labelName, String expectedname) {
+		boolean status=false;
+		String temp="";
+		try {
+			String textField=labelName+"#xpath=//label[normalize-space(text())='"+labelName+"']/parent::div//span[@class='selection']//span[text()]";
+			if(isElementPresent(textField))
+			{
+				scrollToElement(textField);
+				temp=getText(textField);
+				if (temp.equalsIgnoreCase(expectedname)) {
+					status=true;
+					testStepPassed(labelName + " dropdown has expected value: " + temp);
+				}
+				else
+				{
+					status=false;
+					writeToLogFile("INFO",labelName+" dropdown has different value :"+temp);
+				}
+			}
+			else
+				testStepFailed(labelName+" dropdown is not dispalyed in "+implicitlyWaitTime+" seconds.");
+		} catch (Exception e) {
+			testStepFailed("Failed to validate expected value in dropdown "+labelName+".");
+			writeToLogFile("ERROR", "Failed to validate expected value in dropdown "+labelName+". Error: " + e.getMessage());
+		}
+		return status;
+	}
+
+	/**
+	 * Description: Method for select value from from the drop down
+	 * @author: Abhilasha
+	 * @param: expectedOption
+	 * @param: field
+	 */
+	public void selectDropDownValue(String field, String expectedOption) {
+		try {
+			boolean status=	verifyTextAlreadySelectedInDropDown(field,expectedOption);
+			String dropDownFieldSelect = field + "#xpath= //label[normalize-space(text())='"+field+"']/following-sibling::select | //label[normalize-space(text())='"+field+"']/parent::div//select";
+			if(status)
+				writeToLogFile("INFO", expectedOption+" is already selected.");
+			else{
+				if(isElementPresent(dropDownFieldSelect))
+				{
+					Select staticDropDown = new Select(findWebElement(dropDownFieldSelect));
+					staticDropDown.selectByVisibleText(expectedOption);
+					if(verifyTextAlreadySelectedInDropDown(field,expectedOption))
+						testStepPassed(expectedOption+" is selected in dropdown "+field);
+					else
+					{
+						testStepFailed(expectedOption+" is not selected in dropdown "+field);
+						highLighterMethod("#xpath=//label[text()='"+field+"']/following-sibling::div");
+					}
+				}
+				else
+					testStepFailed(field+" dropdown is not present.");
+			}
+
+		} catch (Exception e) {
+			writeToLogFile("ERROR", "Failed to handle dropdown. Error: " + e.getMessage());
+			testStepFailed("Failed to handle dropdown.");
+		}
+	}
+
+
+
+
+	/**
+	 * Description: Method for select document from the drop down
+	 * @author: Abhilasha
+	 * @param: expectedOption
+	 */
+	public void documentDropDown(String expectedOption) {
+		try {
+			String selectedValue=expectedOption+" is seleceted#xpath=//span[@title='"+expectedOption+"' and text()='"+expectedOption+"']";
+			String documentDropDown="Document DropDown#xpath=//span[@title='All' and text()='All']";
+			String expected=expectedOption+"#xpath=//li[contains(@class,'select2-results__option') and text()='"+expectedOption+"']";
+			clickOn(documentDropDown);
+			clickOn(expected);
+			if(isElementDisplayed(selectedValue, 10))
+			{
+				testStepPassed(expectedOption+" is selected successfully.");
+			}
+			else
+			{
+				highLighterMethod(GOR.document_Field);
+				testStepFailed(expectedOption+" is not selected.");				
+			}
+		} catch (Exception e) {
+			testStepFailed("Failed to click dropdown.");
+			writeToLogFile("ERROR", "Failed to click dropdown. Error: " + e.getMessage());
+		}
+	}
+
+
+	/**
+	 * Description: Method for fetch booking Number
+	 * @author: Abhilasha
+	 * @param: tabName
+	 * @return: number
+	 */
+	public String captureBookingNumber(String tabName) {		
+		String number="";
+		int iterator_Count = 0;
+		try {
+			waitForAngularLoad();
+			scrollToElement(GOR.tab_Number);			
+			do
+			{
+				waitTime(1);
+				number=findWebElement(GOR.tab_Number).getText();
+				iterator_Count++;
+			}while(number.equals("New") && iterator_Count<30);
+
+			if(!number.equals("New"))
+				testStepPassed(tabName+" is saved and "+tabName+" number is: "+number);
+
+		} catch (Exception e) {
+			writeToLogFile("ERROR", "Failed to capture "+tabName+" number. Error: " + e.getMessage());
+			testStepFailed("Failed to capture "+tabName+" number.");
+		}
+		return number;
+
+	}
+
+	/**
+	 * Description: Method for fetch consol Number
+	 * @author: Abhilasha
+	 * @param: tabName
+	 * @return: number
+	 */
+	public String captureConsolNumber() {		
+		String number="";
+		int iterator_Count = 0;
+		try {
+			waitForAngularLoad();
+			//scrollToElement(GOR.tab_Number);
+			scrollToElement(GOR.consol_Number);			
+			do
+			{
+				waitTime(1);
+				number=findWebElement(GOR.consol_Number).getText();
+				iterator_Count++;
+			}while(number.equals("XXXXXXXX") && iterator_Count<30);
+
+			if(!number.equals("XXXXXXXX"))
+				testStepPassed("Consol is saved and number is: "+number);
+
+		} catch (Exception e) {
+			writeToLogFile("ERROR", "Failed to capture consol number. Error: " + e.getMessage());
+			testStepFailed("Failed to capture consol number.");
+		}
+		return number;
+
+	}
+	
+
+
+	/**
+	 * Description: Method to handle filter
+	 * @author: Abhilasha
+	 * @param: field
+	 * @param: expectedData
+	 */
+	public void handleFilter(String field,String expectedData)		
+	{	
+		boolean filter_Status = false;
+		boolean textBox_Status = false;
+		int iterator = 1;
+		try{
+			String fieldName=field+"button#xpath=//label[@title='"+field+"']/following-sibling::div//input";
+			waitForAngularLoad();
+			do {
+				if(isElementDisplayed(GOR.filter,5)){
+					clickOn(GOR.filter);
+					filter_Status = true;	
+				}
+				if(isElementDisplayed(fieldName,5))
+				{
+					typeIn(fieldName,expectedData);
+					clickOn(GOR.filterbutton_Apply);
+					textBox_Status = true;
+					break;
+				}
+			} while (iterator<=3);
+
+			if(!filter_Status) {
+				highLighterMethod(GOR.filterHeader_Field);
+				testStepFailed("Filter button is not dispalyed in "+implicitlyWaitTime+" seconds.");
+			}
+			if(!textBox_Status) {
+				highLighterMethod(GOR.filter_Field);
+				testStepFailed(field+" is not dispalyed in "+implicitlyWaitTime+" seconds.");
+			}
+		}
+		catch(Exception e) {
+			writeToLogFile("ERROR", "Failed to handle filter. Error: "+e.getMessage());
+			testStepFailed("Failed to handle filter.");
+		}		
+		finally {
+			driver.manage().timeouts().implicitlyWait(implicitlyWaitTime, TimeUnit.SECONDS);
+		}
+	}
+
+
+	/**
+	 * Description: Method to click in header button( Except filter filter button)
+	 * @author: Abhilasha
+	 * @param: button_Name
+	 */
+	public void clickOnHeaderButton(String button_Name)		
+	{		
+		try{
+			String button=button_Name+" button#xpath=//div[contains(@class,'header')]/button[text()='"+button_Name+"']";
+			if(isElementDisplayed(button,implicitlyWaitTime))
+			{
+				clickOn(button);
+			}
+			else
+			{
+				highLighterMethod(GOR.header_Field);
+				testStepFailed(button_Name+" button is not dispalyed in "+implicitlyWaitTime+" seconds.");
+			}
+
+		}		
+		catch(Exception e) {
+			writeToLogFile("ERROR", "Failed to click on header button "+button_Name+". Error: "+e.getMessage());
+			testStepFailed("Failed to click on header button "+button_Name+".");
+		}		
+	}
+
+	/**
+	 * Description: Method to click in footer button
+	 * @author: Abhilasha
+	 * @param: button_Name
+	 */
+	public void clickOnFooterButton(String button_Name)		
+	{	
+
+		try{
+			String button=button_Name+" button#xpath=//div[contains(@class,'eaxis-footer-strip')]//button[text()='"+button_Name+"'] | //div[contains(@class,'eaxis-footer-strip')]//input[@value='"+button_Name+"'] ";
+			if(isElementDisplayed(button,implicitlyWaitTime) && waitTillElemetToBeClickable(button))
+			{
+				waitForAngularLoad();
+				clickOn(button);
+
+			}
+			else
+			{
+				highLighterMethod(GOR.footer_Field);
+				testStepFailed(button_Name+" button is not dispalyed in "+implicitlyWaitTime+" seconds.");				
+			}
+
+		}		
+		catch(Exception e) {
+			writeToLogFile("ERROR", "Failed to click on footer button "+button_Name+". Error: "+e.getMessage());
+			testStepFailed("Failed to click on footer button "+button_Name+".");
+		}		
+	}
+
+	/**
+	 * Description: Method to click in footer link
+	 * @author: Abhilasha
+	 * @param: link_Name
+	 */
+	public void clickOnFooterLink(String link_Name)		
+	{		
+		try{
+			String link=link_Name+" link#xpath=//div[contains(@class,'eaxis-footer-text') and text()='"+link_Name+"']";
+			if(isElementDisplayed(link,implicitlyWaitTime))
+			{
+				clickOn(link);
+			}
+			else
+			{
+				highLighterMethod(GOR.footer_Field);
+				testStepFailed(link_Name+" button is not dispalyed in "+implicitlyWaitTime+" seconds.");
+			}
+
+		}		
+		catch(Exception e) {
+			writeToLogFile("ERROR", "Failed to click on footer link "+link_Name+". Error: "+e.getMessage());
+			testStepFailed("Failed to click on footer link "+link_Name+".");
+		}		
+	}
+
+	/**
+	 * Description: Method to click in footer link
+	 * @author: Abhilasha
+	 * @param: link_Name
+	 */
+	public String getInstanceNumber(String taskName)		
+	{		
+		String number="";
+		String[] sam;
+		String result="";
+
+		try{
+			String instance="Intance Number#xpath=//div[contains(@class,'clearfix edit-activity-header-wrapper')]//span[contains(text(),'"+taskName+" -')]";
+			if(isElementPresent(instance))
+			{
+				number=getText(instance);
+				sam=number.split("-");
+				result=sam[1].trim();
+				System.out.println(result);
+			}
+			else
+				testStepFailed("Intance is not present in page.");
+
+		}		
+		catch(Exception e) {
+			writeToLogFile("ERROR", "Failed to get intance number. Error: "+e.getMessage());
+			testStepFailed("Failed to get intance number.");
+		}
+		return result;		
+	}
+
+
+	/**
+	 * Description: Method to verify if expected text is already selected in auto suggestive text field
+	 * @author: Abhilasha
+	 * @param: label
+	 * @param: expected
+	 * @return: status
+	 */
+	public boolean verifyTextAlreadySelectedInAutoTextField(String labelName, String expectedname) {
+		boolean status=false;
+		String temp="";
+		try {
+			String textField=labelName+"#xpath=//label[normalize-space(text())='"+labelName+"']/parent::div//following-sibling::div//input[@aria-autocomplete='list']";
+			if(isElementPresent(textField))
+			{
+				waitForAngularLoad();
+				scrollToElement(textField);
+				temp=  getAttributeValue(textField, "value");
+				if (temp.equalsIgnoreCase(expectedname)) {
+					status=true;
+					testStepPassed(labelName + " field has expected value: " + temp);
+				}
+				else
+				{
+					status=false;
+					writeToLogFile("INFO",labelName+" auto sugestive text field has different value :"+temp);
+				}
+			}
+			else
+				testStepFailed(labelName+" auto suggestive text field is not dispalyed in "+implicitlyWaitTime+" seconds.");
+		} catch (Exception e) {
+			testStepFailed("Failed to validate expected value in "+labelName+".");
+			writeToLogFile("ERROR", "Failed to validate expected value in "+labelName+". Error: " + e.getMessage());
+		}
+		return status;
+	}
+
+	/**
+	 * Description: Method enter text in textField
+	 * @author: Abhilasha
+	 * @param: lable
+	 * @param: value
+	 */
+
+	public void enterDataInTextField(String label,String value,String inputFieldType)		
+	{	
+		inputFieldType = inputFieldType.toUpperCase();
+		String textField = "";
+		try{
+			switch (inputFieldType) {
+			case "COMMON":
+				textField = label+" field#xpath=//label[normalize-space(text())='"+label+"']/following-sibling::div/input | //label[text()='"+label+"']/following-sibling::div/input | //label[normalize-space(text())='"+label+"']/following-sibling::div/textarea "; 
+				break;
+			case "PACKING":
+				textField = label+" field#xpath=//label[normalize-space(text())='"+label+"']/parent::div//following-sibling::div/input"; 
+				break;
+
+			case "CONTAINER_DETAILS":
+				textField = label+" field#xpath=//label[normalize-space(text())='"+label+"']//following-sibling::input"; 
+				break;
+			case "TAX_INVOICE":
+				textField = label+" field#xpath=//span[normalize-space(text())='"+label+"']//parent::div//following-sibling::div//textarea"; 
+				break;
+			case "COMAN":
+				textField = label+" field#xpath=//label[normalize-space(text())='"+label+"']/following-sibling::div/div/input"; 
+				break;
+
+			default:
+				testStepFailed(label+" input field is not found");
+				return;
+			}
+			if(isElementPresent(textField))
+			{
+				scrollToElement(textField);
+				typeIn(textField, value);
+			}
+			else
+				testStepFailed(label+" field is not available.");
+		}		
+		catch(Exception e) {
+			writeToLogFile("ERROR", "Failed to enter value in "+label+". Error: "+e.getMessage());
+			testStepFailed("Failed to enter value in "+label+".");
+		}		
+	}
+	/**
+	 * Description: Method get Column index
+	 * @param: headerName
+	 */
+	public int retrieveColumnPosition(String headerName) {
+		int columnPosition = 0;
+		try {
+			if (isElementDisplayed(GOR.TableHeader)) {
+				List<WebElement> headerValues = findWebElements(GOR.TableHeader);
+				for (int i = 0; i < headerValues.size(); i++) {
+//					JavascriptExecutor jscript = (JavascriptExecutor) driver;
+//					jscript.executeScript("arguments[0].scrollIntoView(true);", headerValues.get(i));
+					String headervalue = headerValues.get(i).getText().trim();
+					if (headervalue.contains(headerName)) {
+						columnPosition = i;
+						break;
+					} else {
+						if (i == (headerValues.size() - 1)) {
+							testStepFailed("Table does not contain the header value - " + headerName);
+						}
+					}
+				}
+			}
+
+		} catch (Exception e) {
+			testStepFailed("retrieveColumnPosition Failed. Exception: " + e.getClass());
+		}
+		return columnPosition + 1;
+	}
+
+	/**
+	 * Description: Method get Row index
+	 * @param: columnPosition
+	 * @param: value
+	 */
+	public int retrieveRowPosition(int columnPosition, String value) {
+		int rowPosition = 0;
+		try {
+			String tableRow = "Header values#xpath=//div[not(contains(@class,'pinned'))]/div[@role='presentation']//div[@class='ui-grid-row ng-scope']//div[@role='row']/div["
+					+ columnPosition + "]";
+			List<WebElement> rowValues = findWebElements(tableRow);
+			for (int i = 0; i < rowValues.size(); i++) {
+				String cellvalue = rowValues.get(i).getText().trim();
+				if (cellvalue.contains(value)) {
+					rowPosition = i;
+					break;
+				} else {
+					if (i == (rowValues.size() - 1)) {
+						testStepFailed("Table does not contain the row value - " + value);
+					}
+				}
+			}
+
+		} catch (Exception e) {
+			testStepFailed("retrieveColumnPosition Failed. Exception: " + e.getClass());
+		}
+		return rowPosition + 1;
+	}
+
+	/**
+	 * Description: Method get value from given position
+	 * @param: rowPosition
+	 * @param: columnPosition
+	 */
+	public String getTableValue(int rowPosition, int columnPosition) {
+		String table_Value = null;
+		try {
+			String tablePosition = "table values#xpath=//div[@class='ui-grid-canvas']//div[@class='ui-grid-row ng-scope']["
+					+ rowPosition + "]//div[@role='row']//div[" + columnPosition + "]/div";
+			if (isElementDisplayed(tablePosition)) {
+				table_Value = getText(tablePosition);
+				testStepPassed(table_Value + " is required value from the table");
+			} else {
+				testStepFailed("Not able to get the " + table_Value + " at rowPosition and column Position "
+						+ rowPosition + "," + columnPosition);
+			}
+		} catch (Exception e) {
+			testStepFailed("Exception:" + e.getMessage());
+		}
+		return table_Value;
+	}
+
+	/**
+	 * Description: Method get value from given position
+	 * @param: rowPosition
+	 * @param: columnPosition
+	 */
+	public String clickOntableValue(int rowPosition, int columnPosition) {
+		String table_Value = null;
+		try {
+			String tablePosition = "table values#xpath=//div[@class='ui-grid-canvas']//div[@class='ui-grid-row ng-scope']["
+					+ rowPosition + "]//div[@role='row']//div[" + columnPosition + "]/div";
+			if (isElementDisplayed(tablePosition)) {
+				table_Value = getText(tablePosition);
+				clickOn(tablePosition);
+				testStepPassed(table_Value + " is required value from the table");
+			} else {
+				testStepFailed("Not able to get the " + table_Value + " at rowPosition and column Position "
+						+ rowPosition + "," + columnPosition);
+			}
+		} catch (Exception e) {
+			testStepFailed("Exception:" + e.getMessage());
+		}
+		return table_Value;
+	}
+
+
+	public void selectDate(String inputDate) {
+		try {
+			String months[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+			List<String> mnths = Arrays.asList(months);
+			if (inputDate.contains("-")) {
+				String[] splitDate = inputDate.split("-");
+				if (splitDate.length == 3) {
+					if (isElementPresent("#cssSelector=li[class='date-picker-menu']")) {
+						// month selection
+						WebElement rtMonthName = findWebElement(
+								"#cssSelector=li[class='date-picker-menu'] thead>tr:nth-of-type(1)>th:nth-of-type(2)");
+						String[] splitRtMonthName = rtMonthName.getText().split(" ");
+						int refMonth = Month.valueOf(splitRtMonthName[0].toUpperCase()).getValue();
+
+						// Year navigation
+						int ipDateYear = Integer.valueOf(splitDate[2]);
+						int rtDateYear = Integer.valueOf(splitRtMonthName[1]);
+						if (ipDateYear > rtDateYear) {
+							WebElement rightArrow = findWebElement(
+									"#cssSelector=li[class='date-picker-menu'] thead>tr:nth-of-type(1)>th:nth-of-type(3)");
+							while (ipDateYear != rtDateYear) {
+								scrollToElement(rightArrow);                                                                                                                                                                                                                          
+								rightArrow.click();
+								waitTime(1);
+								rtMonthName = findWebElement(
+										"#cssSelector=li[class='date-picker-menu'] thead>tr:nth-of-type(1)>th:nth-of-type(2)");
+								splitRtMonthName = rtMonthName.getText().split(" ");
+								rtDateYear = Integer.valueOf(splitRtMonthName[1]);
+							}
+						} else {
+							WebElement rightArrow = findWebElement(
+									"#cssSelector=li[class='date-picker-menu'] thead>tr:nth-of-type(1)>th:nth-of-type(1)");
+							while (ipDateYear != rtDateYear) {
+								scrollToElement(rightArrow);                                                                                                                                                                                                                          
+								rightArrow.click();
+								waitTime(1);
+								rtMonthName = findWebElement(
+										"#cssSelector=li[class='date-picker-menu'] thead>tr:nth-of-type(1)>th:nth-of-type(2)");
+								splitRtMonthName = rtMonthName.getText().split(" ");
+								rtDateYear = Integer.valueOf(splitRtMonthName[1]);
+							}
+						}
+
+						splitRtMonthName = rtMonthName.getText().split(" ");
+						refMonth = Month.valueOf(splitRtMonthName[0].toUpperCase()).getValue();
+
+						// Month navigation
+						int ipDateMonth = mnths.indexOf(splitDate[1]) + 1;
+						// int ipDateMonth = Integer.valueOf(splitDate[1]);
+						if (ipDateMonth > refMonth) {
+							WebElement rightArrow = findWebElement(
+									"#cssSelector=li[class='date-picker-menu'] thead>tr:nth-of-type(1)>th:nth-of-type(3)");
+							while (ipDateMonth != refMonth) {
+								scrollToElement(rightArrow);                                                                                                                                                                                                                          
+								rightArrow.click();
+								waitTime(1);
+								rtMonthName = findWebElement(
+										"#cssSelector=li[class='date-picker-menu'] thead>tr:nth-of-type(1)>th:nth-of-type(2)");
+								splitRtMonthName = rtMonthName.getText().split(" ");
+								refMonth = Month.valueOf(splitRtMonthName[0].toUpperCase()).getValue();
+							}
+						} else {
+							WebElement rightArrow = findWebElement(
+									"#cssSelector=li[class='date-picker-menu'] thead>tr:nth-of-type(1)>th:nth-of-type(1)");
+							while (ipDateMonth != refMonth) {
+								scrollToElement(rightArrow);                                                                                                                                                                                                                          
+								rightArrow.click();
+								waitTime(1);
+								rtMonthName = findWebElement(
+										"#cssSelector=li[class='date-picker-menu'] thead>tr:nth-of-type(1)>th:nth-of-type(2)");
+								splitRtMonthName = rtMonthName.getText().split(" ");
+								refMonth = Month.valueOf(splitRtMonthName[0].toUpperCase()).getValue();
+							}
+						}
+
+						// Date Selection
+						WebElement dateSelection = findWebElement(
+								"#xpath=//button/span[(@class='ng-binding text-info' or @class='ng-binding') and text()='"
+										+ splitDate[0] + "']");
+						waitTime(1);
+						scrollToElement(dateSelection);                                                                                                                                                                                                                          
+						dateSelection.click();
+						testStepPassed(inputDate + " Date is selected from Calendar window");
+					} else {
+						testStepFailed("Failed to display Calendar window");
+					}
+				} else {
+					testStepFailed("The date format should be in dd//mm//yyyy");
+				}
+			} else {
+				testStepFailed("The date format should be in dd//mm//yyyy");
+			}
+		} catch (Exception e) {
+			testStepFailed(e.getMessage());
+		}
+
+	}
+
+
+	public void autoitfileupload(String documentname) {
+		//System.out.println();
+		String uploadedfile = "uploaded file#xpath=//div[@class='cleafix list-wrapper sm-document-list-wrapper']//a[text()='"
+				+ documentname + "']";
+		String filepath = System.getProperty("user.dir") + "\\data\\" + documentname;
+		writeToLogFile("INFO", "File Location:"+filepath);
+		String autoITpath = System.getProperty("user.dir") + "\\autoIt\\fileupload.exe";
+		writeToLogFile("INFO", "AutoIT Location:"+autoITpath);
+		String location = filepath;
+
+		try {
+			if (isElementPresent(GOR.upload_btn)) {
+				clickOn(GOR.upload_btn);
+				writeToLogFile("INFO", "Upload button is clicked");
+				ProcessBuilder pb = new ProcessBuilder(autoITpath, location);
+				pb.start();
+				waitForElement(uploadedfile, implicitlyWaitTime);
+				if (isElementDisplayed(uploadedfile,implicitlyWaitTime)) {
+					testStepPassed(documentname + " file is uploaded successfully");
+				} else {
+					testStepFailed("Failed to upload file " + documentname);
+				}
+			} else {
+				testStepFailed("Failed to click upload button.");
+			}
+
+		} catch (Exception e) {
+			testStepFailed("failed to upload file" +documentname);
+			writeToLogFile("ERROR", "failed to upload file" + documentname+".ERROR: "+e.getMessage());
+		}
+		finally {
+			clickOn(GOR.close_btn);
+		}
+
+	}
+
+	public void autoitFileUploading(String documentname) {
+		String filepath = System.getProperty("user.dir") + "\\data\\" + documentname;
+		writeToLogFile("INFO", "File Location:"+filepath);
+		String autoITpath = System.getProperty("user.dir") + "\\autoIt\\fileupload.exe";
+		writeToLogFile("INFO", "AutoIT Location:"+autoITpath);
+		String location = filepath;
+
+		try {
+			testStepInfo(documentname+" document is uploading");
+			ProcessBuilder pb = new ProcessBuilder(autoITpath, location);
+			pb.start();
+
+
+		} catch (Exception e) {
+			testStepFailed("failed to upload file" +documentname);
+			writeToLogFile("ERROR", "failed to upload file" + documentname+".ERROR: "+e.getMessage());
+		}
+
+	}
+
+	/**
+	 * Description: Method get value from given position
+	 * @param: rowPosition
+	 * @param: columnPosition
+	 */
+	public void clickOnButton(String buttonName) {
+		try {
+			String button="";
+			button=buttonName+"#xpath=//div[contains(@class,'basic-form-bg')]//button[text()='"+buttonName+"'] | //button[text()='"+buttonName+"'] | //div[@id='consolGeneral']//button[@title='"+buttonName+"'] |//button[@title='"+buttonName+"']";
+			clickOn(button);
+
+		} catch (Exception e) {
+			testStepFailed("Failed to click on "+buttonName+".");
+			writeToLogFile("ERROR", "Failed to click on "+buttonName+".ERROR: "+e.getMessage());
+		}
+
+	}
+
+	/**
+	 * Description: Method get value from given position
+	 * @param: rowPosition
+	 * @param: columnPosition
+	 */
+	public void clickButton(String buttonName) {
+		String button="";		
+		try {
+			switch(buttonName)
+			{
+			case "Add New":
+			{
+				button=buttonName+"#xpath=//div[@class='open-main-task-title']/following-sibling::div//button[text()]//span[contains(@class,'plus')]  |  //span[text()='General']/ancestor::div[@id='consolGeneral']//button[@title='Add New']";	
+				clickOn(button);
+				break;
+			}
+
+			case "Delete":
+			{
+				button=buttonName+"#xpath=//div[@class='open-main-task-title']/following-sibling::div//button[text()]//span[contains(@class,'trash')]  | //span[text()='General']/ancestor::div[@id='consolGeneral']//button[@title='Delete']";	
+				clickOn(button);
+				break;
+			}
+
+			case "More":
+			{
+				button=buttonName+"#xpath=//div[@class='open-main-task-title']/following-sibling::div//button[text()]//span[contains(@class,'ellipsis')] | //span[text()='General']/ancestor::div[@id='consolGeneral']//button[@title='More']";	
+				clickOn(button);
+				break;
+			}
+			default:
+				testStepFailed(buttonName+" button is not found");
+				return;
+			}		
+
+		} catch (Exception e) {
+			testStepFailed("Failed to click on "+buttonName+".");
+			writeToLogFile("ERROR", "Failed to click on "+buttonName+".ERROR: "+e.getMessage());
+		}
+
+	}
+	/**
+	 * @param field_Name
+	 * @param string
+	 * @return void
+	 * @author Abhilasha 	 
+	 */
+
+	public void handlePopup(String header, String action) {
+		try {
+			String popupAction=header+" pop-up with action "+action+"#xpath=//*[text()='"+header+"']/ancestor::div[@class='modal-dialog ']//button[contains(text(),'"+action+"')]";
+			if(isElementDisplayed(popupAction, implicitlyWaitTime))
+			{
+				clickOn(popupAction);
+			}
+			else
+				testStepFailed(header+" Pop up is not displayed.");
+		}
+		catch (Exception e) {
+			writeToLogFile("ERROR", "Failed to handle alert.ERROR:" + e.getMessage());
+			testStepFailed("Failed to handle alert. ERROR: " + e.getMessage());
+		}
+	}
+
+	public void searchDataInMyTask(String shipmentNo) {
+		String typed_Text = "";
+		int iterator = 1;
+		try {
+			if(isElementDisplayed(GOR.myTask_Search_Field, implicitlyWaitTime)) {
+				do {
+					waitForAngularLoad();
+					Actions type = new Actions(driver);
+					type.pause(Duration.ofSeconds(1)).sendKeys(findWebElement(GOR.myTask_Search_Field), shipmentNo).build().perform();
+					waitTillElemetToBeClickable(GOR.goButton);
+					clickOn(GOR.goButton);
+					typed_Text = getAttributeValue(GOR.myTask_Search_Field, "value");
+					if(typed_Text.equals(shipmentNo)) {
+						break;
+					}else {
+						waitTime(1);						
+						iterator++;
+					}
+				}while(typed_Text.equals(shipmentNo) && iterator<20);
+			}else {
+				testStepFailed("Search field is not found.");
+			}	
+		} catch (Exception e) {
+			testStepFailed("Failed to search data in my task");
+			writeToLogFile("ERROR", "Failed to search data in my task.ERROR:"+e.getMessage());
+
+		}
+	}
+
+	public void openAndAssignTask(String profileNo,String taskName) {
+		String fetched_shipmentNo = "";
+		String taskHeaderName = "";
+		String assign_Me_Button = "Assign to me Button#xpath=//button[text()='Assign To Me']";
+		boolean status = false;		
+		try {
+			waitForAngularLoad();
+			String scroll ="scroll#xpath=//div[@class='my-task-header3 clearfix']//div[1]//div//div//div[2][contains(text(),'"+taskName+"')]";
+			scrollToElement(scroll);
+			testStepInfo("scrolled to element ");
+			List<WebElement> task_Element = findWebElements(GOR.task_List);
+			for(WebElement element : task_Element) {
+				fetched_shipmentNo = findWebElementFrom(element, "shipment No#xpath=//div[contains(@class,'text-single-line') and starts-with(@title,'SHP')] | //div[contains(@class,'text-single-line') and starts-with(@title,'CON')] | //div[contains(@class,'text-single-line') and starts-with(@title,'BRK')]").getText().trim();
+				if(fetched_shipmentNo.contains(profileNo)) {
+					taskHeaderName = findWebElementFrom(element, GOR.task_heading).getText().trim();
+					testStepInfo("fetched_shipmentNo contains same "+taskHeaderName);
+				
+					if(taskName.equals(taskHeaderName)) {
+						findWebElementFrom(element, "open#xpath=//button[text()='Open']").click();
+						testStepInfo("tasknumber contains same");
+						testStepPassed(profileNo+" shipment number "+taskName+" open button is clicked");
+						status = true;	
+						break;
+					}
+					else {
+						continue;
+					}
+				}
+			}
+			if(status) {
+				if(isElementDisplayed(assign_Me_Button, 15))					
+					clickOn(assign_Me_Button);
+				else
+					writeToLogFile("INFO", "Assign to me button is visible.");
+			}else {
+				testStepFailed(profileNo+" shipment no "+taskName+" open button is not present");
+			}
+
+		} catch (Exception e) {
+			testStepFailed("Fail to open "+taskName+" task");
+			writeToLogFile("ERROR", "Fail to open "+taskName+" task.ERROR:"+e.getMessage());
+		}
+	}
+
+	public int getTableColumnIndex(String headerName,String objectLocator) {
+		int index = 1;
+		try {
+			List<WebElement> tableHeaderElement = findWebElements(objectLocator);
+			for (WebElement element : tableHeaderElement) {
+				scrollToElement(element); 
+				String textColumnHeader = element.getText().trim();
+				if (textColumnHeader.equals(headerName))
+				{ 
+					break;
+				}
+				else 
+				{ 
+					index++;
+				}
+			}
+		}
+		catch (Exception e) {
+			testStepFailed("Retrieving table header index functionality failed. ");
+			writeToLogFile("ERROR", "Retrieving table header index functionality failed. ERROR :" + e.getMessage());
+		}
+		finally {
+			staleElementIterator = 1;
+		}
+		return index;
+	}
+
+
+
+	public boolean clickDateIcon(String labelName) {
+		boolean lableEnable = false;
+		try {
+			WebElement label = findWebElement(
+					"label #xpath=//label[normalize-space(text())='"+labelName+"']/parent::div//following-sibling::div//button");
+			if (label.isEnabled()) {
+				scrollToElement(label);
+				JavascriptExecutor executor = (JavascriptExecutor)driver;
+				executor.executeScript("arguments[0].click();", label);
+				testStepPassed(labelName+" date icon is clicked");
+				lableEnable = true;
+			} else if (!label.isEnabled()) {
+				testStepPassed("Field is disabled " + labelName);
+			} else {
+				testStepFailed("Unable to enter date in " + labelName);
+			}
+
+		} catch (Exception e) {
+			writeToLogFile("ERROR", "Failed to click On date icon. "+labelName+" ERROR:"+e.getMessage());
+			testStepFailed("Failed to click On date icon."+labelName);
+			e.printStackTrace();
+		}
+		return lableEnable;
+	}
+
+	public void clickOnButton(String buttonName,String buttonType) {
+		String button = "";
+		boolean status = false;
+		try {
+			switch (buttonType.toUpperCase()) {
+			case "COMMON":
+				button = buttonName+"#xpath=(//button[text()='"+buttonName+"'])";
+				break;
+			case "DATE":
+				button = buttonName+" field#xpath=//label[normalize-space(text())='"+buttonName+"']/following-sibling::div//span//button"; 
+				break;
+			default:
+				testStepFailed("given button type "+buttonType+" is not present");
+				return;
+			}
+			parseidentifyByAndlocator(button);
+			List<WebElement> buttonElements = driver.findElements(By.xpath(locator));
+			System.out.println(buttonElements.size());
+			for(int iterator=1;iterator<=buttonElements.size();iterator++) {
+				if(isElementDisplayed(button+"["+iterator+"]",implicitlyWaitTime)) {
+					//scrollToElement(button+"["+iterator+"]");
+					clickOn(button+"["+iterator+"]");
+					status = true;
+					break;
+				}
+			}
+			if(!status) {
+				testStepFailed(buttonName+" button is not found.");
+			}
+
+
+		} catch (Exception e) {
+			writeToLogFile("ERROR", "Failed to click on "+buttonName+".ERROR: "+e.getMessage());
+			testStepFailed("Failed to click on "+buttonName+".");			
+		}
+	}
+
+
+	public void waitForGrid(String objectLocator,String exceptionText) {
+		try {
+			waitForAngularLoad();
+			if(isElementPresent(objectLocator)) {
+				writeToLogFile("INFO", "Successfully "+exceptionText);
+			}else {
+				testStepFailed("Failed to "+exceptionText);
+			}
+		} catch (Exception e) {
+			testStepFailed("Failed to "+exceptionText+"");
+			writeToLogFile("ERROR", "Failed to "+exceptionText+".ERROR:"+e.getMessage());
+
+		}
+	}
+
+
+	public void validateDataInTable(String headerName,String objectLocator,String expectedValue) {
+		boolean status = false;
+		try {
+			int columnIndex= getTableColumnIndex(headerName, objectLocator);
+			columnIndex = columnIndex+1;
+			waitForAngularLoad();
+			List<WebElement> rowElements = findWebElements("row elements#xpath=//table[@id='results']//tr[@class]//td["+columnIndex+"]");
+			for (WebElement element : rowElements) {
+				String current_Text = element.getText().trim();
+				if(expectedValue.equals(current_Text)) {
+					testStepPassed(expectedValue+" is present in the "+headerName+" column");
+					status = true;
+					break;
+				}else {
+					continue;
+				}
+
+			}
+
+			if(!status) {
+				testStepFailed(expectedValue+" is not present in the "+headerName+" column");
+
+			}
+		} catch (Exception e) {
+			testStepFailed("Failed to validate data in table");
+			writeToLogFile("ERROR", "Failed to validate data in table.ERROR:"+e.getMessage());
+
+		}
+	}
+
+	public void waitForToastMessage(String message,String taskName) {
+		try {
+			String toast_Path =  message+" message#xpath=//div[@class='toast-message' and contains(text(),'"+message+"')]";
+			if(isElementDisplayed(toast_Path, implicitlyWaitTime)){
+				testStepPassed(message+" message is displayed for "+taskName);
+			}
+			else {
+				writeToLogFile("INFO", message+" message is displayed for "+taskName);
+			}
+		} catch (Exception e) {
+			testStepFailed("Failed to display "+message+" message");
+			writeToLogFile("ERROR", "Failed to display "+message+" message.ERROR:"+e.getMessage());
+		}
+	}
+
+	public boolean searchDataAndValidate(String shipmentNo,String taskName) {
+		int iterator = 1;
+		boolean validate_Status = true;
+		try {
+			waitForAngularLoad();
+			if(isElementPresent(GOR.myTask_Search_Field)) {
+					waitForAngularLoad();
+					typeIn(GOR.myTask_Search_Field,shipmentNo);
+					waitTillElemetToBeClickable(GOR.goButton);
+					if(findWebElement(GOR.goButton).isEnabled()) {
+						clickOn(GOR.goButton);
+					}else {
+						typeIn(GOR.myTask_Search_Field,shipmentNo);
+						clickOn(GOR.goButton);
+					}
+//					if(validateTaskTriggred(shipmentNo, taskName)) {
+//						validate_Status = true;
+//						break;
+//					}else {
+//						waitTime(1);
+//						driver.navigate().refresh();
+//						iterator++;
+//					}
+				//}while(iterator<1);
+			}else {
+				testStepFailed("My Task search field is not displayed within "+implicitlyWaitTime+" seconds");
+				return validate_Status;
+			}
+			if(!validate_Status) {
+				testStepFailed(shipmentNo+" shipment number "+taskName+" is not present in my task tab");
+			}
+		} catch (Exception e) {
+			testStepFailed("Failed to search data in my task");
+			writeToLogFile("ERROR", "Failed to search data in my task.ERROR:"+e.getMessage());
+
+		}
+		return validate_Status;
+	}
+
+	public void validateFooterIconAndReload(String iconName) {
+		int iterator = 1;
+		boolean status = false;
+		try {
+			String icon_Path=iconName+" link#xpath=//div[contains(@class,'eaxis-footer-text') and text()='"+iconName+"']";
+			driver.navigate().refresh();
+			findWebElement(GOR.addNewRecord_plusIcon).click();
+
+			do {
+				if(isElementDisplayed(icon_Path, 10)){
+					writeToLogFile("INFO", iconName+" icon is displayed");
+					status = true;
+					break;
+				}
+				else {
+					iterator++;
+					driver.navigate().refresh();
+					if(isElementDisplayed(GOR.addNewRecord_plusIcon, implicitlyWaitTime)) {
+						findWebElement(GOR.addNewRecord_plusIcon).click();
+					}
+				}
+			}while(iterator<=3);
+
+
+			if(status) {
+				testStepPassed("Add icon is clicked");
+			}else {
+				if(!isElementDisplayed(GOR.addNewRecord_plusIcon, 5)) {
+					highLighterMethod(GOR.header_Field);
+					testStepFailed("Add icon is not found");
+					return;
+				}else {
+					highLighterMethod(GOR.footer_Field);
+					testStepFailed( iconName+" icon is not found");	
+				}
+
+			}
+		} catch (Exception e) {
+			testStepFailed("Failed to display footer icon");
+			writeToLogFile("ERROR", "Failed to display footer icon.ERROR:"+e.getMessage());
+		}
+	}
+
+
+	public void clickOnCheckbox(String labelName,String checkboxType) {
+		driver.manage().timeouts().implicitlyWait(elementLoadWaitTime, TimeUnit.SECONDS);
+		String checkbox_Label = "";
+		String checkbox_Class = "";
+		boolean checkbox_Element_status  = false;
+		boolean checkboxstatus  = false;
+		try {
+			waitForAngularLoad();
+			switch (checkboxType.toUpperCase()) {
+			case "SERVICE_TYPE":
+				checkbox_Label = GOR.service_Checkbox_Labels;
+				break;
+			default:
+				testStepFailed("Given checkbox type "+checkboxType+" is not valid.");
+				return;
+			}
+			List<WebElement>checkbox_Elements = findWebElements(checkbox_Label);
+			writeToLogFile("INFO", "checkbox count is:"+checkbox_Elements.size());
+			for(WebElement element : checkbox_Elements) {
+				String current_Element_Value = element.getText().trim();
+				if(current_Element_Value.equals(labelName)) {
+					scrollToElement(element);
+					checkbox_Element_status = true;
+					checkbox_Class= findWebElementFrom(element, "checkbox validation#xpath=//input").getAttribute("class");
+					if(checkbox_Class.toUpperCase().contains("NG-EMPTY")) {
+						findWebElementFrom(element, "checkbox path#xpath=//span").click();
+						checkboxstatus  = true;
+					}
+					break;
+				}
+
+			}
+
+			if(checkbox_Element_status) {
+				if(!checkboxstatus) {
+					if(checkbox_Class.toUpperCase().contains("NOT-EMPTY")) {
+						testStepPassed(labelName+" checkbox is already selected");
+					}else {
+						testStepFailed(labelName+" checkbox is not selected");
+					}
+				}
+			}else {
+				testStepFailed(labelName+" checkbox is not present");
+			}
+
+		}
+
+		catch (Exception e) {
+			testStepFailed("Failed to click on " + labelName+" checkbox");
+			writeToLogFile("ERROR", "Failed to click on " + labelName + " checkbox .ERROR:" + e.getMessage());
+		}
+
+	}
+
+	public String idFetcher_For_headerTabs() {
+		String id = "";
+		try {
+			List<WebElement> elements = findWebElements("Page content#xpath=//div[@class='tab-content']//div[@class='clearfix']//ul[@class='nav nav-tabs']//parent::div[@id]");
+			for(WebElement element : elements) {
+				id = element.getAttribute("id");
+				String id_Element = "Page content#xpath=//div[@class='tab-content']//div[@class='clearfix']//ul[@class='nav nav-tabs']//parent::div[@id='"+id+"']";
+				if(isElementDisplayed(id_Element,3)) {
+					return id;
+				}else {
+					continue;
+				}
+			}
+
+		} catch (Exception e) {
+			testStepFailed("Failed to fetch id from a page");
+			writeToLogFile("ERROR", "Failed to fetch id from a page.ERROR:" + e.getMessage());
+		}
+		return id;	
+	}
+
+	public void clickOnTabs(String tabName) {
+		boolean status = false;
+		try {
+			waitForAngularLoad();
+			String id = idFetcher_For_headerTabs();
+			String tab = tabName+" tab#xpath=(//div[@id='"+id+"']//ul[@class='nav nav-tabs']//li[contains(@class,'uib-tab')]//span[normalize-space(text())='"+tabName+"'])";
+			List<WebElement> tabs_Elements = findWebElements(tab);
+			for(WebElement element : tabs_Elements) {
+				if(isElementDisplayed(tab, 5) && waitTillElemetToBeClickable(element) ) {
+					scrollToElement(element);
+					element.click();
+					testStepPassed(tabName+" tab is clicked");
+					status = true;
+					break;
+				}
+			}
+			if(!status) {
+				testStepFailed(tabName+" tab is not present.");
+			}	
+
+		} catch (Exception e) {
+			testStepFailed("Failed to click on "+tabName);
+			writeToLogFile("ERROR", "Failed to click on "+tabName+".ERROR:"+e.getMessage());
+
+		}
+	}
+
+
+	public void getTodaysDateAndTime(String fieldName) {
+		clickOnButton(fieldName,"DATE");
+		clickOnButton("Today","Common");
+		clickOnButton("Now","Common");
+	}
+
+
+	public String readFromFile(String fileName) {
+		String currentData = "";
+		String firstElement = "";
+		String iteratingElements = "";
+		File inputFile = null;
+		try {
+			inputFile = new File(System.getProperty("user.dir")+"//data//"+fileName+"");
+			File tempFile = new File(System.getProperty("user.dir")+"//data//temp_Container_Numbers.txt");
+			FileInputStream fis = new FileInputStream(System.getProperty("user.dir")+"//data//Container_Numbers.txt");
+			BufferedReader reader = new BufferedReader(new InputStreamReader(fis, "UTF8"));
+			BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile));
+
+			while ((currentData = reader.readLine()) != null) {
+				String currentdatas = currentData;
+				System.out.println(currentdatas.trim().length());
+				if(currentdatas.length() == 11) {
+					firstElement = currentData.trim();
+					break;
+				}
+
+			}
+			reader.close();
+
+			reader = new BufferedReader(new FileReader(inputFile));
+			while ((currentData = reader.readLine()) != null) {
+				iteratingElements = currentData.trim();
+				if(iteratingElements.equals(firstElement)) {
+					continue;
+				}
+				else {
+					writer.write(currentData + System.getProperty("line.separator"));
+				}
+			}
+			reader.close();
+			writer.close();
+			reader = new BufferedReader(new FileReader(tempFile));
+			writer = new BufferedWriter(new FileWriter(inputFile));
+
+			while ((currentData = reader.readLine()) != null) {
+				writer.write(currentData + System.getProperty("line.separator"));
+			}
+			writer.close();
+			reader.close();
+		} catch (Exception e) {
+			testStepFailed(fileName+" file is not present in current file directory ");
+			writeToLogFile("ERROR", fileName+" file is not present in current file directory.ERROR: "+e.getMessage());
+		}
+		return firstElement;
+	}
+
+
+	public void clickOnSideTabs(String sideTabName) {
+		String fetching_TabName = "";
+		boolean status = false;
+		try {
+			waitForAngularLoad();
+			List<WebElement> sideTabs_Elements = findWebElements(GOR.sideTabs);
+			for(WebElement element : sideTabs_Elements) {
+				fetching_TabName = element.getText();
+				if(fetching_TabName.equals(sideTabName) && waitTillElemetToBeClickable(element) ) {
+					element.click();
+					testStepPassed(sideTabName+" tab is clicked");
+					status = true;
+					break;
+				}
+			}
+			if(!status) {
+				highLighterMethod("#xpath=//div[contains(@class,'tab-profile')]/parent::ul[@class='nav nav-tabs']");
+				testStepFailed(sideTabName+" tab is not present.");
+			}	
+
+		} catch (Exception e) {
+			testStepFailed("Failed to click on "+sideTabName);
+			writeToLogFile("ERROR", "Failed to click on "+sideTabName+".ERROR:"+e.getMessage());
+
+		}
+	}
+
+
+	public boolean validateTaskTriggred(String shipmentNo,String taskName) {
+		String fetched_shipmentNo = "";
+		String taskHeaderName = "";
+		boolean status = false;		
+		try {
+			waitForAngularLoad();
+			if(isElementDisplayed("shipment No#xpath=//div[contains(@class,'text-single-line') and contains(@title,'"+shipmentNo+"')]",4)) {
+				List<WebElement> task_Element = findWebElements(GOR.task_List);
+				for(WebElement element : task_Element) {
+					scrollToElement(element);
+					fetched_shipmentNo = findWebElementFrom(element, "shipment No#xpath=//div[@class='my-task-header clearfix']//div[contains(@class,'text-single-line') and starts-with(@title,'SHP')] | //div[@class='my-task-header clearfix']//div[contains(@class,'text-single-line') and starts-with(@title,'CON')]").getText().trim();
+					if(fetched_shipmentNo.contains(shipmentNo)) {
+						taskHeaderName = findWebElementFrom(element, GOR.task_heading).getText().trim();
+						if(taskName.equals(taskHeaderName)) {
+							testStepPassed(shipmentNo+" shipment number "+taskName+" is present in my task tab");
+							status = true;	
+							break;
+						}
+						else {
+							continue;
+						}
+					}
+				}
+			}
+			else {
+				status = false;	
+			}
+		} catch (Exception e) {
+			testStepFailed("Fail to validate convert to shipment process in my task.");
+			writeToLogFile("ERROR", "Fail to validate convert to shipment process in my task.ERROR:"+e.getMessage());
+		}
+		return status;
+	}
+
+
+
+	public void handleAutoSuggestiveTextField(String labelName, String expectedname) {		
+		String current_Value="";
+		int iterator = 1;
+		boolean status=false;
+		boolean typing_Status = false;
+		try {
+			String textField=labelName+"#xpath=//label[normalize-space(text())='"+labelName+"']/parent::div//following-sibling::div//input[@aria-autocomplete='list']";
+			String listOfSuggestion = "#xpath=//ul[@class='dropdown-menu ng-isolate-scope']//a";
+			if(isElementDisplayed(textField,10)){
+				if(!verifyTextAlreadySelectedInAutoTextField(labelName,expectedname)){				
+					do {
+						status = false;
+						waitForAngularLoad();
+						typeIn(textField,expectedname);
+						if(isElementPresent(listOfSuggestion)){
+							List<WebElement> list = findWebElements(listOfSuggestion);
+							for (int innerIterator = 1; innerIterator<=list.size();innerIterator++) {
+								String currentPath = expectedname+"#xpath=(//ul[@class='dropdown-menu ng-isolate-scope']//a)["+innerIterator+"]";
+								scrollToElement(currentPath);
+								current_Value = findWebElement(currentPath).getAttribute("title");
+								if ((current_Value.toUpperCase().startsWith(expectedname.toUpperCase()))) {
+									clickOn(currentPath);
+									status = true;
+									break;
+								}
+								else {
+									continue;
+								}
+							}
+							if (status){
+								writeToLogFile("INFO",expectedname + " " + labelName + " is clicked.");
+								if(verifyTextAlreadySelectedInAutoTextField(labelName,expectedname)) {
+									testStepPassed(expectedname + " " + labelName + " is selected.");
+									typing_Status = true;
+									break;
+								}
+							}
+							else
+								testStepFailed(expectedname + " " + labelName + " is not clicked.");
+						}
+						else{
+							waitTime(1);
+						}
+						iterator++;
+
+					}while(!verifyTextAlreadySelectedInAutoTextField(labelName,expectedname) && iterator<5);
+				}
+
+			}else {
+				testStepFailed(labelName+" field is not present");
+			}
+			if(status) {
+				if(!typing_Status)
+					testStepFailed(expectedname + " " + labelName + " is not selected.");
+			}
+
+
+
+		} catch (Exception e) {
+			testStepFailed("Failed to handle auto suggestive text field: " + labelName + ".");
+			writeToLogFile("ERROR", "Failed to handle auto suggestive text field: " + labelName + ". Error: " + e.getMessage());
+		}
+	}
+
+
+	public void handleAutoSuggestiveTextFieldV2(String labelName, String expectedname) {		
+		String current_Value="";
+		int iterator = 1;
+		boolean status=false;
+		boolean typing_Status = false;
+		try {
+			String textField=labelName+"#xpath=//label[normalize-space(text())='"+labelName+"']/parent::div//following-sibling::div//input[@aria-autocomplete='list']";
+			String listOfSuggestion = "#xpath=//ul[@class='dropdown-menu ng-isolate-scope']//a";
+			List<WebElement> textField_Elements = findWebElements(textField);
+			for(int textField_iterator = 1; textField_iterator<=textField_Elements.size();textField_iterator++) {
+				if(isElementDisplayed("#xpath=(//label[normalize-space(text())='"+labelName+"']/parent::div//following-sibling::div//input[@aria-autocomplete='list'])["+textField_iterator+"]", 3)) {
+					String current_Textfield = labelName+"#xpath=(//label[normalize-space(text())='"+labelName+"']/parent::div//following-sibling::div//input[@aria-autocomplete='list'])["+textField_iterator+"]";
+					if(isElementDisplayed(current_Textfield,10)){
+						if(!verifyTextAlreadySelectedInAutoTextField(labelName,expectedname)){				
+							do {
+								status = false;
+								waitForAngularLoad();
+								typeIn(current_Textfield,expectedname);
+								if(isElementPresent(listOfSuggestion)){
+									List<WebElement> list = findWebElements(listOfSuggestion);
+									for (int innerIterator = 1; innerIterator<=list.size();innerIterator++) {
+										String currentPath = expectedname+"#xpath=(//ul[@class='dropdown-menu ng-isolate-scope']//a)["+innerIterator+"]";
+										scrollToElement(currentPath);
+										current_Value = findWebElement(currentPath).getAttribute("title");
+										if ((current_Value.toUpperCase().startsWith(expectedname.toUpperCase()))) {
+											clickOn(currentPath);
+											status = true;
+											break;
+										}
+										else {
+											continue;
+										}
+									}
+									if (status){
+										writeToLogFile("INFO",expectedname + " " + labelName + " is clicked.");
+										if(verifyTextAlreadySelectedInAutoTextField(labelName,expectedname)) {
+											testStepPassed(expectedname + " " + labelName + " is selected.");
+											typing_Status = true;
+											break;
+										}
+									}
+									else
+										testStepFailed(expectedname + " " + labelName + " is not clicked.");
+								}
+								else{
+									waitTime(1);
+								}
+								iterator++;
+
+							}while(!verifyTextAlreadySelectedInAutoTextField(labelName,expectedname) && iterator<5);
+						}
+
+					}else {
+						testStepFailed(labelName+" field is not present");
+					}
+					if(status) {
+						if(!typing_Status)
+							testStepFailed(expectedname + " " + labelName + " is not selected.");
+					}
+
+				}
+				else {
+					continue;
+				}
+			}
+
+
+
+		} catch (Exception e) {
+			testStepFailed("Failed to handle auto suggestive text field: " + labelName + ".");
+			writeToLogFile("ERROR", "Failed to handle auto suggestive text field: " + labelName + ". Error: " + e.getMessage());
+		}
+	}
+
+	public void validateTaskIsNotTriggred(String shipmentNo,String taskName) {
+		String fetched_shipmentNo = "";
+		String taskHeaderName = "";
+		boolean status = true;
+		try {
+			driver.manage().timeouts().implicitlyWait(5, TimeUnit.SECONDS);
+			waitForAngularLoad();
+			if(isElementDisplayed("shipment No#xpath=//div[@class='my-task-header clearfix']//div[contains(@class,'text-single-line') and contains(@title,'"+shipmentNo+"')]",4)) {
+				List<WebElement> task_Element = findWebElements(GOR.task_List);
+				for(WebElement element : task_Element) {
+					scrollToElement(element);
+					fetched_shipmentNo = findWebElementFrom(element, "shipment No#xpath=//div[@class='my-task-header clearfix']//div[contains(@class,'text-single-line') and starts-with(@title,'SHP')] | //div[@class='my-task-header clearfix']//div[contains(@class,'text-single-line') and starts-with(@title,'CON')]").getText().trim();
+					if(fetched_shipmentNo.contains(shipmentNo)) {
+						taskHeaderName = findWebElementFrom(element, GOR.task_heading).getText().trim();
+						if(taskName.equals(taskHeaderName)) {
+							testStepFailed(shipmentNo+" shipment number "+taskName+" is present in my task tab. But according to our scenario it will be not present there");
+							status = false;
+							break;
+						}
+						else {
+							status = true;
+							continue;
+						}
+					}
+				}
+			}
+			else {
+				testStepPassed(taskName+" task is not triggred. According to our scenario condition is satisfy");
+				return;
+			}
+			if(status) {
+				testStepPassed(taskName+" task is not triggred. According to our scenario condition is satisfy");
+			}
+		} catch (Exception e) {
+			testStepFailed("Fail to validate task is not triggred in my task.");
+			writeToLogFile("ERROR", "Fail to validate task is not triggred in my task.ERROR:"+e.getMessage());
+		}
+		finally {
+			driver.manage().timeouts().implicitlyWait(elementLoadWaitTime, TimeUnit.SECONDS);
+		}
+
+	}
+
+
+	public void waitTillLoadingIconDisapper(String objectLocator) {
+		try {
+
+			if(isElementDisplayed(objectLocator, 5)){
+				waitTillElementDisappears(objectLocator);
+			}
+			else {
+				writeToLogFile("INFO", "Page is fully loaded.");
+			}
+		} catch (Exception e) {
+			testStepFailed("Failed to wait till loading icon is disappear");
+			writeToLogFile("ERROR", "Failed to wait till loading icon is disappear.ERROR:"+e.getMessage());
+		}
+	}
+
+	public void VerifyCheckBoxisclickedifnotclick(String labelName) {
+		try {
+			String checkbox = "checkbox#xpath=//label/span[text()='" + labelName + "']";
+			if (isElementDisplayed(checkbox, 2)) {
+				WebElement checkboxes = findWebElement(checkbox);
+				if (!checkboxes.isSelected()) {
+					testStepPassed(labelName + " checkbox is already selected ");
+
+				} else {
+					clickOn(checkbox);
+					testStepPassed(labelName + " checkbox is clicked ");
+				}
+			} else {
+				testStepFailed(labelName + " checkbox is not present");
+			}
+		}
+
+		catch (Exception e) {
+			testStepFailed("Failed to clickOn checkbox" + labelName + " Exception - " + e.getMessage());
+		}
+
+	}
+
+	public void clickOncloseButton() {
+		try {
+			if (isElementPresent(GOR.Btn_close)) {
+				clickOn(GOR.Btn_close);
+				testStepPassed("Page is closed successfully.");
+			} else {
+				highLighterMethod(GOR.plusIconBar);
+				testStepFailed("Page close button is not found to click");
+			}
+
+		} catch (Exception e) {
+			testStepFailed("Page close button is not found to click");
+		}
+
+	}
+
+	public void clickOnSideNavigationBar(String sideNavigationName) {
+		try {
+			String sideBar = "#xpath=//ul[contains(@class,'sidebar-menu')]//span[text()='"+sideNavigationName+"']//parent::a//parent::li";
+			String getCurrentStatus = getAttributeValue(sideBar, "class");
+
+
+			if(isElementDisplayed(sideBar, implicitlyWaitTime) && !getCurrentStatus.contains("open") && !getCurrentStatus.contains("active")) {
+				clickOn(sideBar);
+			}else if(isElementDisplayed(sideBar, implicitlyWaitTime)) {
+				testStepInfo(sideNavigationName+" is already expanded.");
+				return;
+			}
+			else {
+				testStepFailed("Failed to display side navigation within: "+ implicitlyWaitTime+" seconds");
+				return;
+			}
+
+
+			if(isElementDisplayed(sideBar, implicitlyWaitTime)) {
+				String gettingClassAttribute = getAttributeValue(sideBar, "class");
+				if(gettingClassAttribute.contains("open")) 
+				{
+					testStepPassed(sideNavigationName+" is expanded.");
+				}else if(gettingClassAttribute.contains("active")) {
+					testStepPassed(sideNavigationName+" is clicked.");
+				}else {
+					testStepFailed(sideNavigationName+" is not expanded/clicked");
+				}
+			}
+
+
+		} catch (Exception e) {
+			testStepFailed("Failed to display side navigation.");
+			writeToLogFile("ERROR", "Failed to display side navigation.ERROR: "+e.getMessage());
+		}
+	}
+
+	/**
+	 * Method to get Date within calculative days after from today
+	 * @param PlusOrMinus
+	 * @param dayCount
+	 * @return strDate
+	 */
+	public String getRequiredDate(String PlusOrMinus, int dayCount) {
+		String strDate = "";
+		try {
+			Calendar calendar = Calendar.getInstance();
+			SimpleDateFormat formatter = new SimpleDateFormat("dd-MMM-yyyy");
+			if(PlusOrMinus.toUpperCase().equals("PLUS")) {
+				calendar.add(Calendar.DATE, +dayCount);
+				Date date = calendar.getTime();
+				strDate = formatter.format(date);
+			}else if(PlusOrMinus.toUpperCase().equals("MINUS")){
+				calendar.add(Calendar.DATE, -dayCount);
+				Date date = calendar.getTime();
+				strDate = formatter.format(date);
+			}else {
+				testStepFailed("Addition or subraction date option is wrong");
+			}
+			writeToLogFile("INFO", " date is: "+strDate);
+		} catch (Exception e) {
+			testStepFailed("Failed to get Date");
+			writeToLogFile("ERROR", "Failed to get Date.ERROR: "+e.getMessage());
+		}
+
+
+		return strDate;
+	}
+	
+	public boolean clickDateIcon(String labelName,int legNumber) {
+		boolean lableEnable = false;
+		boolean status = false;
+		try {
+			String label =
+					"label #xpath=//tr[@id='tableBody']["+legNumber+"]//td[@id='"+labelName+"']//button";
+			parseidentifyByAndlocator(label);
+			List<WebElement> buttonElements = driver.findElements(By.xpath(locator));
+			System.out.println(buttonElements.size());
+			for(int iterator=1;iterator<=buttonElements.size();iterator++) {
+				if(isElementDisplayed(label+"["+iterator+"]",implicitlyWaitTime)) {
+					scrollToElement(label+"["+iterator+"]");
+					if (findWebElement(label+"["+iterator+"]").isEnabled()) {
+						findWebElement(label+"["+iterator+"]").click();
+						lableEnable = true;
+					}else if (!findWebElement(label+"["+iterator+"]").isEnabled()) {
+						testStepPassed("Field is disabled " + labelName);
+					} else {
+						testStepFailed("Unable to enter date in " + labelName);
+					}
+					status = true;
+				}
+			}if(!status) {
+				testStepFailed(labelName+" date button is not found.");
+			}
+
+		} catch (Exception e) {
+			testStepFailed("Failed to validate data in table");
+			writeToLogFile("ERROR", "Failed to validate data in table.ERROR:"+e.getMessage());
+			e.printStackTrace();
+		}
+		return lableEnable;
+	}
+
+	/**
+	 * Description: Method get Row index in Verify Pre Alert - Job Registration page
+	 * @param: columnPosition
+	 * @param: value
+	 */
+	public int getTableRowIndex(String column, String value) {
+		int index = 1;
+		try {
+			String column_Locator="Column#xpath=//*[text()='Verify Pre Alert - Job Registration']/ancestor::div[contains(@class,'active')]//div[@class='theader']//div[contains(@class,'table_header')]";
+			int columnPosition =getTableColumnIndex(column,column_Locator);
+			String locator="Rows#xpath=//*[text()='Verify Pre Alert - Job Registration']/ancestor::div[contains(@class,'active')]//div[contains(@class,'table_row')]/div[contains(@class,'table_small')]["+columnPosition+"]//span[text()]";
+			List<WebElement> rowValues = findWebElements(locator);
+			for (WebElement element : rowValues) {
+				scrollToElement(element); 
+				String textColumnHeader = element.getText().trim();
+				if (textColumnHeader.equals(value))
+				{ 
+					break;
+				}
+				else 
+				{ 
+					index++;
+				}
+			}
+		} catch (Exception e) {
+			writeToLogFile("ERROR", "Failed to get Row.");
+			testStepFailed("ERROR: Failed to get Row" + e.getMessage());
+		}
+		return index;
+	}
+	
+	
+	public void selectDropdownInTable(int rowPosition, int columnPosition,String value) {
+		String table_Value = null;
+		try {
+			String tablePosition = "table values#xpath=//*[text()='Verify Pre Alert - Job Registration']/ancestor::div[contains(@class,'active')]//div[contains(@class,'table_row')]["+rowPosition+"]/div[contains(@class,'table_small')]["+columnPosition+"]//select";
+			if (isElementDisplayed(tablePosition)) {
+				Select staticDropDown = new Select(findWebElement(tablePosition));
+				staticDropDown.selectByVisibleText(value);
+				testStepPassed(table_Value + " is required value from the table");
+			} else {
+				testStepFailed("Not able to select the " + value + " at rowPosition and column Position "
+						+ rowPosition + "," + columnPosition);
+			}
+		} catch (Exception e) {
+			writeToLogFile("ERROR", "Failed to select value from table.");
+			testStepFailed("ERROR: Failed to select value from table." + e.getMessage());
+		}
+		
+	}
+	
+	public void handleAutoSuggestiveTextField(String labelName, String expectedname,int legNumber) {		
+		String current_Value="";
+		boolean status=false;
+		boolean selectedStatus=false;
+		try {
+			String textField=labelName+"#xpath=//tr[@id='tableBody']["+legNumber+"]//td[@id='"+labelName+"']//input";
+			String listOfSuggestion = "#xpath=//ul[@class='dropdown-menu ng-isolate-scope']//a";
+			parseidentifyByAndlocator(textField);
+			List<WebElement> fields = driver.findElements(By.xpath(locator));
+			System.out.println(fields.size());
+			for(int iterator=1;iterator<=fields.size();iterator++) {
+				if(isElementDisplayed(textField+"["+iterator+"]",implicitlyWaitTime)) {
+					scrollToElement(textField+"["+iterator+"]");
+					if(!verifyTextAlreadySelectedInAutoTextField(labelName,expectedname,legNumber))
+					{
+						typeIn(textField+"["+iterator+"]",expectedname);
+						List<WebElement> list = findWebElements(listOfSuggestion);
+						if(list.size() != 0) {
+							for (int innerIterator = 1; innerIterator<=list.size();innerIterator++) {
+								String currentPath = "#xpath=(//ul[@class='dropdown-menu ng-isolate-scope']//a)["+innerIterator+"]";
+								scrollToElement(currentPath);
+								current_Value = findWebElement(currentPath).getAttribute("title");
+								if ((current_Value.toUpperCase()).startsWith(expectedname.toUpperCase())) {
+									clickOn(currentPath);
+									selectedStatus = true;
+									break;
+								}
+								else {
+									continue;
+								}
+							}
+							if (selectedStatus)
+								testStepPassed(expectedname + " " + labelName + " is clicked.");
+							else
+								testStepFailed(expectedname + " " + labelName + " is not clicked.");
+						}
+						else
+							testStepPassed("No Record Found");
+					}
+					else
+						testStepPassed(expectedname+" is already selected.");
+					status = true;
+				}
+			}if(!status) {
+				testStepFailed(labelName+" auto text field is not found.");
+			}
+
+		} catch (Exception e) {
+			testStepFailed("Failed to handle auto suggestive text field: " + labelName + ".");
+			writeToLogFile("ERROR", "Failed to handle auto suggestive text field: " + labelName + ". Error: " + e.getMessage());
+		}
+	}
+	
+	public void selectDateAndTime(String fieldName,String date) {
+		selectDate(date);
+		clickOnButton("Now","Common");
+	}
+	
+	public boolean verifyTextAlreadySelectedInAutoTextField(String labelName, String expectedname,int legNumber) {
+		boolean availabilitystatus=false;
+		boolean status=false;
+		String temp="";
+		try {
+			String textField=labelName+"#xpath=//tr[@id='tableBody']//td[@id='"+labelName+"']//input";
+			parseidentifyByAndlocator(textField);
+			List<WebElement> fields = driver.findElements(By.xpath(locator));
+			System.out.println(fields.size());
+			for(int iterator=1;iterator<=fields.size();iterator++) {
+				if(isElementDisplayed(textField+"["+iterator+"]",implicitlyWaitTime)) {
+					scrollToElement(textField+"["+iterator+"]");
+					temp=  getAttributeValue(textField+"["+iterator+"]", "value");
+					if (temp.equalsIgnoreCase(expectedname)) {						
+						availabilitystatus=true;
+						testStepPassed(labelName + " field has expected value: " + temp);
+					}
+					else
+					{
+						availabilitystatus=false;
+						writeToLogFile("INFO",labelName+" auto sugestive text field has different value :"+temp);
+					}
+					status = true;
+				}
+			}if(!status) {
+				testStepFailed(labelName+" auto text field is not found.");
+			}
+		} catch (Exception e) {
+			testStepFailed("Failed to validate expected value in "+labelName+".");
+			writeToLogFile("ERROR", "Failed to validate expected value in "+labelName+". Error: " + e.getMessage());
+		}
+		return availabilitystatus;
+	}
+	
+	public void selectDropDownValue(String field, String expectedOption,int legNumber) {
+		boolean status = false;
+		try {
+			String dropDownFieldSelect = field + "#xpath=//tr[@id='tableBody']["+legNumber+"]//td[@id='"+field+"']//select";
+			parseidentifyByAndlocator(dropDownFieldSelect);
+			List<WebElement> buttonElements = driver.findElements(By.xpath(locator));
+			System.out.println(buttonElements.size());
+			for(int iterator=1;iterator<=buttonElements.size();iterator++) {
+				if(isElementDisplayed(dropDownFieldSelect+"["+iterator+"]",implicitlyWaitTime)) {
+					scrollToElement(dropDownFieldSelect+"["+iterator+"]");
+					if(isElementPresent(dropDownFieldSelect+"["+iterator+"]"))
+					{
+						Select staticDropDown = new Select(findWebElement(dropDownFieldSelect+"["+iterator+"]"));
+						staticDropDown.selectByVisibleText(expectedOption);
+					}else
+						testStepFailed(field+" dropdown is not present.");
+					status = true;
+				}
+			}if(!status) {
+				testStepFailed(field+" dropdown is not found.");
+			}
+		}
+		catch (Exception e) {
+			writeToLogFile("ERROR", "Failed to handle dropdown. Error: " + e.getMessage());
+			testStepFailed("Failed to handle dropdown.");
+		}
+	}
+	
+	public void enterDataInTextField(String label,String value,int legNumber)		
+	{	
+		boolean status=false;
+		String textField = "";
+		try{
+			textField = " field#xpath=//tr[@id='tableBody']["+legNumber+"]//td[@id='"+label+"']//input"; 
+			parseidentifyByAndlocator(textField);
+			List<WebElement> fields = driver.findElements(By.xpath(locator));
+			System.out.println(fields.size());
+			for(int iterator=1;iterator<=fields.size();iterator++) {
+				if(isElementDisplayed(textField+"["+iterator+"]",implicitlyWaitTime)) {
+					scrollToElement(textField+"["+iterator+"]");
+					typeIn(textField, value);
+					status = true;
+				}
+			}if(!status) {
+				testStepFailed(label+" text field is not found.");
+			}
+
+		}		
+		catch(Exception e) {
+			writeToLogFile("ERROR", "Failed to enter value in "+label+". Error: "+e.getMessage());
+			testStepFailed("Failed to enter value in "+label+".");
+		}		
+	}
+	
+	public void waitTillToastMessageDisapper(String objectLocator) {
+		try {
+
+			if(isElementDisplayed(objectLocator, 5)){
+				waitTillElementDisappears(objectLocator);
+			}
+			else {
+				writeToLogFile("INFO", "Toast message is disappear");
+			}
+		} catch (Exception e) {
+			testStepFailed("Failed to wait till toast message is disappear");
+			writeToLogFile("ERROR", "Failed to wait till toast message is disappear.ERROR:"+e.getMessage());
+		}
+	}
+	
+	public void searchMyTask(String shipmentNo) {
+		try {
+			if(isElementDisplayed(GOR.myTask_Search_Field, implicitlyWaitTime)) {
+					waitForAngularLoad();
+					typeIn(GOR.myTask_Search_Field,shipmentNo);
+					waitTillElemetToBeClickable(GOR.goButton);
+					clickOn(GOR.goButton);
+			}else {
+				testStepFailed("Search field is not found.");
+			}	
+		} catch (Exception e) {
+			testStepFailed("Failed to search data in my task");
+			writeToLogFile("ERROR", "Failed to search data in my task.ERROR:"+e.getMessage());
+
+		}
+	}
+	
+	public void validationErrorMsg1(String actual) {
+		try {
+			List<WebElement> errors = driver.findElements(By.xpath("//div[@class='message ng-binding']"));
+			String a[] = actual.split("||");
+			if (errors.size() > 0) {
+				for (int i = 0; i <= errors.size() - 1; i++) {
+					String geterror = errors.get(i).getText();
+					for (int j = 0 ; j <= a.length; j ++) {
+						if (geterror.contains(a[j])) {
+							testStepInfo("Info: " + geterror);
+							testStepPassed("Validation Messages captured successfully");
+							break;
+						}else {
+							testStepFailed(a[j]+" Errormessage is Not Displyed in a Application");
+							
+						}
+					}
+					
+				}
+			}
+		} catch (Exception e) {
+			testStepFailed("No validation errors");
+		}
+	}
+	
+	public void validationErrorMsg(String actual) {
+		try {
+			
+			
+			String a[] = actual.split("-");
+			
+			for (int j = 0 ; j <= a.length-1; j ++) {
+				
+			     String errors = "Error option #xpath=//div[@class='meta-object ng-binding'][contains(text(),'"+a[j]+"')]";
+			
+//			if (errors.size()>0) {
+//				for (int i = 0; i <= errors.size()-1; i++) {
+//					String getoption = errors.get(i).getText().trim();
+//					System.out.println(getoption);
+					
+						if (isElementPresent(errors)) {	
+							String geterror  = " Error #xpath=//div[contains(text(),'"+a[j]+"')]//preceding-sibling::div[@class='message ng-binding']";
+							String Error     = getText(geterror).trim();
+							testStepInfo("Info: " + Error);
+							testStepPassed("Validation Messages captured successfully");		
+						}
+						else {	
+							testStepFailed(a[j]+" Errormessage is Not Displyed in a Application");
+
+						}
+//					}
+//				}
+//						continue;
+			}
+		} catch (Exception e) {
+			testStepFailed("No validation errors");
+		}
+	}
+	public void radioButton(String button, boolean isClick) {
+		try {
+			String radioButton = "Radio button#xpath=//label//input[@type='radio' and @value='" + button
+					+ "']/..//span";
+			if (isElementPresent(radioButton)) {
+				testStepPassed(button + " radio button is available");
+				if (isClick) {
+					clickOn(radioButton);
+					testStepPassed("" + button + " button is clicked successfully.");
+				}
+			} else {
+				testStepInfo(button + " radio button is not available");
+			}
+		} catch (Exception e) {
+			testStepFailed(button + " radio button is not available");
+		}
+	}
+	public void autoitfileupload1(String documentname, String element) {
+			String filepath = System.getProperty("user.dir") + "\\data\\" + documentname;
+			writeToLogFile("INFO", "File Location:" + filepath);
+//			String autoITpath = System.getProperty("user.dir") + "\\auto\\fileupload.exe";
+			String autoITpath = System.getProperty("user.dir") + "\\autoIt\\fileupload.exe";	
+			writeToLogFile("INFO", "AutoIT Location:" + autoITpath);
+			testStepInfo("AutoIT Location:" + autoITpath);
+			String location = filepath;
+			try {
+				if (isElementPresent(element)) {
+					clickOn(element);
+					writeToLogFile("INFO", "Upload button is clicked");
+					testStepInfo("Upload button is clicked");
+					ProcessBuilder pb = new ProcessBuilder(autoITpath, location);
+					pb.start();
+					testStepPassed("File Uploaded FileName: " + documentname);
+				}
+			} catch (Exception e) {
+				testStepFailed("failed to upload file" + documentname);
+				writeToLogFile("ERROR", "failed to upload file" + documentname + ".ERROR: " + e.getMessage());
+			}
+			
+			
+			
+		}
+	 public void selectdropdown(String Element, String inputValue) {
+			try {
+				List<WebElement> drpValues = findWebElements(Element);
+				for (int index = 0; index < drpValues.size(); index++) {
+					String optionText = drpValues.get(index).getText();
+					if (optionText.equals(inputValue)) {
+						drpValues.get(index).click();
+						testStepPassed("Successfully clicked "+inputValue);
+						break;
+					} else if (index == (drpValues.size() - 1)) {
+						testStepFailed("Unable to find the " + inputValue + ".");
+					}
+				}
+			} catch (Exception e) {
+				testStepFailed("Unable to find the " + inputValue + ".");
+			}
+		}
+
+		/**
+		 * Description : Method to close the mandatory fields popup
+		 */
+		public void clickMandatoryFiledsPopupClose() {
+			try {
+				if (isElementPresent(GOR.mandatoryFieldsWarning_closeIcon)) {
+					clickOn(GOR.mandatoryFieldsWarning_closeIcon);
+					testStepPassed("Forward icon is clicked Successfully");
+				}
+			} catch (Exception e) {
+				testStepFailed("Unable to find the forward Icon.");
+			}
+		}
+		//public void handleAutoSuggestiveTextFieldInBokking(String labelName, String expectedname) 
+		public void handleAutoSuggestiveTextFieldInBokking(String labelName, String expectedname) {		
+			String current_Value="";
+			int iterator = 1;
+			boolean status=false;
+			boolean typing_Status = false;
+			try {
+				String textField=labelName+"#xpath=//span[contains(text(),'"+labelName+"')]/parent::div/parent::div/div[2]//div//input";
+				String listOfSuggestion = "#xpath=//ul[@class='dropdown-menu ng-isolate-scope']//a";
+				List<WebElement> textField_Elements = findWebElements(textField);
+				for(int textField_iterator = 1; textField_iterator<=textField_Elements.size();textField_iterator++) {
+					if(isElementDisplayed("#xpath=(//span[contains(text(),'\"+labelName+\"')]/parent::div/parent::div/div[2]//div//input)["+textField_iterator+"]", 3)) {
+						String current_Textfield = labelName+"#xpath=(//span[contains(text(),'\"+labelName+\"')]/parent::div/parent::div/div[2]//div//input)["+textField_iterator+"]";
+						if(isElementDisplayed(current_Textfield,10)){
+							if(!verifyTextAlreadySelectedInAutoTextField(labelName,expectedname)){				
+								do {
+									status = false;
+									waitForAngularLoad();
+									typeIn(current_Textfield,expectedname);
+									if(isElementPresent(listOfSuggestion)){
+										List<WebElement> list = findWebElements(listOfSuggestion);
+										for (int innerIterator = 1; innerIterator<=list.size();innerIterator++) {
+											String currentPath = expectedname+"#xpath=(//ul[@class='dropdown-menu ng-isolate-scope']//a)["+innerIterator+"]";
+											scrollToElement(currentPath);
+											current_Value = findWebElement(currentPath).getAttribute("title");
+											if ((current_Value.toUpperCase().startsWith(expectedname.toUpperCase()))) {
+												clickOn(currentPath);
+												status = true;
+												break;
+											}
+											else {
+												continue;
+											}
+										}
+										if (status){
+											writeToLogFile("INFO",expectedname + " " + labelName + " is clicked.");
+											if(verifyTextAlreadySelectedInAutoTextField(labelName,expectedname)) {
+												testStepPassed(expectedname + " " + labelName + " is selected.");
+												typing_Status = true;
+												break;
+											}
+										}
+										else
+											testStepFailed(expectedname + " " + labelName + " is not clicked.");
+									}
+									else{
+										waitTime(1);
+									}
+									iterator++;
+
+								}while(!verifyTextAlreadySelectedInAutoTextField(labelName,expectedname) && iterator<5);
+							}
+
+						}else {
+							testStepFailed(labelName+" field is not present");
+						}
+						if(status) {
+							if(!typing_Status)
+								testStepFailed(expectedname + " " + labelName + " is not selected.");
+						}
+
+					}
+					else {
+						continue;
+					}
+				}
+
+
+
+			} catch (Exception e) {
+				testStepFailed("Failed to handle auto suggestive text field: " + labelName + ".");
+				writeToLogFile("ERROR", "Failed to handle auto suggestive text field: " + labelName + ". Error: " + e.getMessage());
+			}
+		}
+		
+		public void clickTab(WebElement element) {
+			try {
+				if (isElementPresent(GOR.valuesList)) {
+					element.sendKeys(Keys.TAB);
+				}
+
+			} catch (Exception e) {
+				testStepFailed("Tab is not clicked.");
+			}
+		}
+
+	 
+	 public void enterInputValueInSearchField(String inputLabel, String inputValue, boolean withTab) {
+			try {
+				if (isElementPresent(GOR.textbox)) {
+					List<WebElement> tab_labels = findWebElements(GOR.textbox);
+					for (int label = 0; label < tab_labels.size(); label++) {
+						String label_text = tab_labels.get(label).getAttribute("placeholder").trim();
+						if (label_text.equals(inputLabel)) {
+							if (tab_labels.get(label).isDisplayed()) {
+								tab_labels.get(label).clear();
+								tab_labels.get(label).sendKeys(inputValue);
+								if (withTab) {
+									clickTab(tab_labels.get(label));
+								}
+								testStepPassed("\"" + inputValue + "\" is entered into the " + inputLabel + " field.");
+								break;
+							}
+						} else if (label == (tab_labels.size() - 1)) {
+							testStepFailed("Unable to find the " + inputLabel + ".");
+						}
+					}
+				}
+			} catch (Exception e) {
+				testStepFailed("Unable to find the " + inputLabel + ".");
+			}
+		}
+	 public void enterInputValue(String element, String inputValue) {
+			try {
+				if (isElementDisplayed(element)) {
+					clearEditBox(element);
+					typeIn(element, inputValue);
+					testStepPassed(inputValue + " is entered in input field.");
+				} else if (!isElementDisplayed(element)) {
+					testStepPassed("Input Field is disabled.");
+				} else {
+					testStepFailed("Unable to enter value in the input field");
+				}
+			} catch (Exception e) {
+				testStepFailed("Unable to enter value in the input field");
+			}
+		}
+	 public void enterTextIntoconsigner(String labelName,String value) {
+	 	   try {
+	 		String labelXpath = "consignor clicked#xpath=//span[contains(text(),'"+labelName+"')]/parent::div/parent::div/div[2]//div//input";
+	 		WebElement labelField = findWebElement(labelXpath);	
+	 		labelField.clear();
+	 		labelField.sendKeys(value);
+	 		waitForAngularLoad();	
+	 		waitTime(3);
+	 		labelField.sendKeys(Keys.ENTER);
+	 		testStepPassed("[" + value + "] is entered into Textfield [" + labelName + "]");
+	 	} catch (Exception e) {
+	 		testStepFailed("[-] FAIL :: '" + e.getClass() + "' thrown, please do check log file for more details");
+	 		writeToLogFile("ERROR", "[E] :: Exception thrown: " + e);
+	 	}
+	   }
+	 
+	 public void enterInputWithTab(String inputLabel, String inputValue, boolean withTab) {
+			try {
+				if (isElementPresent(GOR.textbox)) {
+					List<WebElement> tab_labels = findWebElements(GOR.textbox);
+					for (int label = 0; label < tab_labels.size(); label++) {
+						String label_text = tab_labels.get(label).getAttribute("placeholder").trim();
+						if (label_text.equals(inputLabel)) {
+							if (isElementDisplay(tab_labels.get(label))) {
+								tab_labels.get(label).clear();
+								tab_labels.get(label).sendKeys(inputValue);
+								if (withTab) {
+									clickTab(tab_labels.get(label));
+								}
+								testStepPassed("\"" + inputValue + "\"  is entered into the text field.");
+								break;
+							}
+						} else if (label == (tab_labels.size() - 1)) {
+							testStepFailed("Unable to find the " + inputLabel + ".");
+						}
+					}
+				}
+			} catch (Exception e) {
+				testStepFailed("Unable to find the " + inputLabel + ".");
+			}
+		}
+	 public boolean isElementDisplay(WebElement locator) {
+			boolean locatorFlag = false;
+			try {
+				driver.manage().timeouts().implicitlyWait(2, TimeUnit.SECONDS);
+				if (locator.isDisplayed()) {
+					locatorFlag = true;
+				}
+			} catch (NoSuchElementException e) {
+				locatorFlag = false;
+				return locatorFlag;
+			}
+			catch (ElementNotVisibleException e2) {
+				locatorFlag = false;
+				return locatorFlag;
+			}
+			return locatorFlag;
+		}
+	 public void clickflangOnCheckbox(String Labelname) {
+			try {
+				String button = Labelname + "#xpath=//label[normalize-space()='"+Labelname+"']";
+				clickOn(button);
+				testStepPassed(Labelname + " is clicked");
+			} catch (Exception e) {
+				testStepFailed(Labelname + " is not clicked");
+			}
+		}
+	 public void applyFilter(String element, String ObjectName) {
+			try {
+				waitTime(10);
+				WebElement filterButton = findWebElement(element);
+				filterButton.click();
+				testStepPassed(ObjectName+" Tab is clicked successfully.");
+			} catch (Exception e) {
+				testStepFailed("Unable to find the tab"+ObjectName);
+			}
+		}
+	 public void enterTextIntosearchBoxElipsis(String labelName, String value) {
+			try {
+				String labelXpath = "Label#xpath=//label[text()='"+labelName+"']//following::div[2]/input";
+				WebElement labelField = findWebElement(labelXpath);
+				labelField.clear();
+				labelField.sendKeys(value);
+				waitForAngularLoad();
+				waitTime(3);
+				labelField.sendKeys(Keys.ENTER);
+				testStepPassed("[" + value + "] is entered into Textfield [" + labelName + "]");
+			} catch (Exception e) {
+				testStepFailed("[-] FAIL :: '" + e.getClass() + "' thrown, please do check log file for more details");
+				writeToLogFile("ERROR", "[E] :: Exception thrown: " + e);
+			}
+		}
+	 
+	 public int retrieveRowPositionForconsol(int columnPosition, String value) {
+			int rowPosition = 0;
+			try {
+				String tableRow = "Header values#xpath=//div[not(contains(@class,'pinned'))]/div[@role='presentation']//div[@class='ui-grid-row ng-scope']//div[2]//div["
+						+ columnPosition + "]";
+				List<WebElement> rowValues = findWebElements(tableRow);
+				for (int i = 0; i < rowValues.size(); i++) {
+					String cellvalue = rowValues.get(i).getText().trim();
+					if (cellvalue.contains(value)) {
+						rowPosition = i;
+						break;
+					} else {
+						if (i == (rowValues.size() - 1)) {
+							testStepFailed("Table does not contain the row value - " + value);
+						}
+					}
+				}
+
+			} catch (Exception e) {
+				testStepFailed("retrieveColumnPosition Failed. Exception: " + e.getClass());
+			}
+			return rowPosition + 1;
+		}
+	 
+	 public void updateCustomFields(String tableHeaderValue, String tagName, String value) {
+			String tableHeader = "Table Header#xpath=//th";
+			List<WebElement> tableHeaderList = findWebElements(tableHeader);
+			for (int i = 0; i <= tableHeaderList.size() - 1; i++) {
+				if (tableHeaderValue.equalsIgnoreCase(tableHeaderList.get(i).getText())) {
+					String headerId = tableHeaderList.get(i).getAttribute("id");
+					switch (tagName) {
+					case "input":
+						String inputField = "Table cell value#xpath=//td[@id='" + headerId + "']//" + tagName + "";
+						findWebElement(inputField).clear();
+						findWebElement(inputField).sendKeys(value);
+						waitForAngularLoad();	
+				 		waitTime(3);
+				 		findWebElement(inputField).sendKeys(Keys.ENTER);
+						testStepInfo("Entered " + value + " into custom field " + tableHeaderValue);
+						break;
+					case "select":
+						String selDropDown = "Table cell value#xpath=//td[@id='" + headerId + "']//" + tagName + "";
+						Select sel = new Select(findWebElement(selDropDown));
+						sel.selectByVisibleText(value);
+						testStepInfo("Selected " + value + " into custom field " + tableHeaderValue);
+						break;
+					}
+					testStepPassed("Captured custom field " + tableHeaderValue + " value: "+value);
+				}
+			}
+
+		}
+	 
+	 public String captureConsoleFormationNum(String tabName) {		
+			String number="";
+			int iterator_Count = 0;
+			try {
+				waitForAngularLoad();
+				scrollToElement(GOR.tab_Number);			
+				do
+				{
+					waitTime(1);
+					number=findWebElement(GOR.tab_Number).getText();
+					iterator_Count++;
+				}while(number.equals("New") && iterator_Count<30);
+
+				if(!number.equals("New"))
+					testStepPassed(tabName+" is saved and "+tabName+" number is: "+number);
+
+			} catch (Exception e) {
+				writeToLogFile("ERROR", "Failed to capture "+tabName+" number. Error: " + e.getMessage());
+				testStepFailed("Failed to capture "+tabName+" number.");
+			}
+			return number;
+	 }
+	 
+	 
+	 public void clickOnReassign(String button_Name)		
+		{		
+			try{
+				String button=button_Name+" button#xpath=//td[normalize-space()='"+button_Name+"']/parent::tr//td[11]//span//button";
+				if(isElementDisplayed(button,implicitlyWaitTime))
+				{
+					clickOn(button);
+				}
+				else
+				{
+					//highLighterMethod(GOR.header_Field);
+					testStepFailed(button_Name+" button is not dispalyed in "+implicitlyWaitTime+" seconds.");
+				}
+
+			}		
+			catch(Exception e) {
+				writeToLogFile("ERROR", "Failed to click on header button "+button_Name+". Error: "+e.getMessage());
+				testStepFailed("Failed to click on header button "+button_Name+".");
+			}		
+		}
+	 public void clickOnAssignToothers(String button_Name)		
+		{		
+			try{
+				String button=button_Name+" button#xpath=//strong[contains(text(),'"+ button_Name+"')]/parent::h5/following::div[1]//div[2]//span";
+				if(isElementDisplayed(button,implicitlyWaitTime))
+				{
+					clickOn(button);
+				}
+				else
+				{
+					//highLighterMethod(GOR.header_Field);
+					testStepFailed(button_Name+" button is not dispalyed in "+implicitlyWaitTime+" seconds.");
+				}
+
+			}		
+			catch(Exception e) {
+				writeToLogFile("ERROR", "Failed to click on header button "+button_Name+". Error: "+e.getMessage());
+				testStepFailed("Failed to click on header button "+button_Name+".");
+			}		
+		}
+	 public void updateCustomFieldsclear(String tableHeaderValue, String tagName) {
+			String tableHeader = "Table Header#xpath=//th";
+			List<WebElement> tableHeaderList = findWebElements(tableHeader);
+			for (int i = 0; i <= tableHeaderList.size() - 1; i++) {
+				if (tableHeaderValue.equalsIgnoreCase(tableHeaderList.get(i).getText())) {
+					String headerId = tableHeaderList.get(i).getAttribute("id");
+					switch (tagName) {
+					case "input":
+						String inputField = "Table cell value#xpath=//td[@id='" + headerId + "']//" + tagName + "";
+						findWebElement(inputField).clear();
+//						findWebElement(inputField).sendKeys(value);
+//						testStepInfo("Entered " + value + " into custom field " + tableHeaderValue);
+						break;
+					case "select":
+						String selDropDown = "Table cell value#xpath=//td[@id='" + headerId + "']//" + tagName + "";
+						Select sel = new Select(findWebElement(selDropDown));
+						
+//						sel.selectByVisibleText(value);
+//						testStepInfo("Selected " + value + " into custom field " + tableHeaderValue);
+						break;
+					}
+					testStepPassed("cleared custom field " + tableHeaderValue );
+				}
+				
+			}
+
+		}
+	 public String getDisabledDropDownfieldValue(String labelValue, String inputValue) {
+			String existingValue = "";
+			try {
+				List<WebElement> labels = findWebElements(GOR.filterLabels);
+				List<WebElement> Values = findWebElements(GOR.disabledDropDownField);
+				if (!labels.isEmpty()) {
+					for (int index = 0; index < labels.size(); index++) {
+						String label = labels.get(index).getText();
+						if (label.equals(labelValue)) {
+							for (int index1 = 0; index1 < Values.size(); index1++) {
+								String textValue = Values.get(index1).getAttribute("class");
+								if (textValue.contains(inputValue)) {
+									existingValue = Values.get(index1).getText();
+									testStepPassed(label + "field is" + existingValue);
+								}
+							}
+							break;
+						}
+					}
+				} else {
+					testStepFailed("Unable to find " + labelValue);
+				}
+			} catch (Exception e) {
+				testStepFailed("Unable to find " + labelValue);
+			}
+			return existingValue;
+
+		}
+	 public String getTextBoxValue(String label) {
+			try {
+				String text = "TextField #xpath=//input[@placeholder='" + label + "']";
+				if (isElementPresent(text)) {
+					WebElement element = findWebElement(text);
+					String temp = element.getAttribute("value");
+					testStepPassed(label +" Captured text: " + temp);
+					if (temp.equals("")) {
+						return "-";
+					} else {
+						return temp;
+					}
+				} else {
+					testStepFailed("Failed to locate element");
+					highLighterMethod(text);
+				}
+			} catch (Exception e) {
+				testStepFailed("Failed to capture text.");
+			}
+			return null;
+		}
+	 public void openAndAssignTaskV2(String profileNo,String taskName) {
+			//String fetched_shipmentNo = "";
+			//String taskHeaderName = "";
+			//String assign_Me_Button = "Assign to me Button#xpath=//button[text()='Assign To Me']";
+			//boolean status = false;		
+			try {
+				waitForAngularLoad();
+				String scroll ="scroll#xpath=//div[@class='my-task-header3 clearfix']//div[1]//div//div//div[2][contains(text(),'"+taskName+"')]";
+				scrollToElement(scroll);
+//				List<WebElement> task_Element = findWebElements(GOR.task_List);
+//				for(WebElement element : task_Element) {
+//					fetched_shipmentNo = findWebElementFrom(element, "shipment No#xpath=//div[contains(@class,'text-single-line') and starts-with(@title,'SHP')] | //div[contains(@class,'text-single-line') and starts-with(@title,'CON')] | //div[contains(@class,'text-single-line') and starts-with(@title,'BRK')]").getText().trim();
+//					if(fetched_shipmentNo.contains(profileNo)) {
+					List<WebElement>taskHeaderName = findWebElements(GOR.task_heading);
+						//testStepInfo("fetched_shipmentNo contains same "+taskHeaderName);
+					for(WebElement num:taskHeaderName) {
+						String task =num.getText().trim();
+						//testStepInfo("fetched_shipmentNo contains same "+task);
+						if(taskName.equals(task)) {
+							findWebElement("open#xpath=//div[@class='my-task-header3 clearfix']//div[1]//div//div//div[2][contains(text(),'"+taskName+"')]/parent::div/ancestor::li/child::*//button[text()='Open']").click();
+							//testStepInfo("tasknumber contains same");
+							testStepPassed(profileNo+" shipment number "+taskName+" open button is clicked");
+							//status = true;	
+							break;
+						}
+						else {
+							continue;
+						}
+					}
+					
+				
+
+			} catch (Exception e) {
+				testStepFailed("Fail to open "+taskName+" task");
+				writeToLogFile("ERROR", "Fail to open "+taskName+" task.ERROR:"+e.getMessage());
+			}
+		}
+	 
+	 
+	 //keerthana
+	 public void clickOnCloseButton() {
+			try {
+				String closeButton = "close Button#xpath=//i[@class='glyphicon glyphicon-remove']";
+				if(isElementDisplayed(closeButton,10)) {
+					clickOn(closeButton);
+				}else {
+					testStepInfo("Close button is not displayed");
+				}
+
+			} catch (Exception e) {
+				testStepFailed("Failed to click on close button");
+				writeToLogFile("ERROR", "Failed to click on close button.ERROR: "+e.getMessage());
+			}
+		}
+	 
+	 public void clickOnFooterButton1(String button_Name)		
+		{	
+
+			try{
+				String button=button_Name+" button#xpath=//div[text()='"+button_Name+"']";
+				if(isElementDisplayed(button,implicitlyWaitTime) && waitTillElemetToBeClickable(button))
+				{
+					waitForAngularLoad();
+					clickOn(button);
+
+				}
+				else
+				{
+					highLighterMethod(GOR.footer_Field);
+					testStepFailed(button_Name+" button is not dispalyed in "+implicitlyWaitTime+" seconds.");				
+				}
+
+			}		
+			catch(Exception e) {
+				writeToLogFile("ERROR", "Failed to click on footer button "+button_Name+". Error: "+e.getMessage());
+				testStepFailed("Failed to click on footer button "+button_Name+".");
+			}		
+		}
+		public void radioButtonfortask(String button, boolean isClick) {
+			try {
+				String radioButton = "Radio button#xpath=//span[contains(text(),'"+button+"')]";
+				if (isElementPresent(radioButton)) {
+					testStepPassed(button + " radio button is available");
+					if (isClick) {
+						clickOn(radioButton)
+	;
+						testStepPassed("" + button + " button is clicked successfully.");
+					}
+				} else {
+					testStepInfo(button + " radio button is not available");
+				}
+			} catch (Exception e) {
+				testStepFailed(button + " radio button is not available");
+			}
+		}
+		
+		public String clickTablePositionValue(int rowPosition, int columnPosition) {
+			String table_Value = null;
+			try {
+				String tablePosition = "table values#xpath=//div[@class='ui-grid-canvas']//div[@class='ui-grid-row ng-scope']["
+						+ rowPosition + "]//div[@role='row']//div[" + columnPosition + "]//a";
+				if (isElementDisplayed(tablePosition)) {
+					table_Value = getText(tablePosition);
+					clickOn(tablePosition);
+					testStepPassed(table_Value + " is Successfully Clicked");
+
+					testStepPassed(table_Value + " is get from the table");
+				} else {
+					testStepFailed("Not able to get the " + table_Value + " at rowPosition and column Position "
+							+ rowPosition + "," + columnPosition);
+				}
+			} catch (Exception e) {
+				testStepFailed("Not able to get the " + table_Value + " at rowPosition and column Position " + rowPosition
+						+ "," + columnPosition);
+			}
+			return table_Value;
+		}
+		public void clickOnReAssignButton(String buttonName) {
+			try {
+				String button="";
+				button=buttonName+"#xpath=//td[contains(text(),'"+buttonName+"')]//following::button[1]";
+				clickOn(button);
+
+			} catch (Exception e) {
+				testStepFailed("Failed to click on "+buttonName+".");
+				writeToLogFile("ERROR", "Failed to click on "+buttonName+".ERROR: "+e.getMessage());
+			}
+
+		}
+		public boolean searchDataAndValidate1(String shipmentNo,String taskName) {
+			int iterator = 1;
+			boolean validate_Status = true;
+			try {
+				waitForAngularLoad();
+				if(isElementPresent(GOR.myTask_Search_Field)) {
+						waitForAngularLoad();
+						typeIn(GOR.myTask_Search_Field,shipmentNo);
+						waitTillElemetToBeClickable(GOR.goButton);
+						if(findWebElement(GOR.goButton).isEnabled()) {
+							clickOn(GOR.goButton);
+						}else {
+							typeIn(GOR.myTask_Search_Field,shipmentNo);
+							clickOn(GOR.goButton);
+						}
+//						if(validateTaskTriggred(shipmentNo, taskName)) {
+//							validate_Status = true;
+//							break;
+//						}else {
+//							waitTime(1);
+//							driver.navigate().refresh();
+//							iterator++;
+//						}
+					//}while(iterator<1);
+				}else {
+					testStepFailed("My Task search field is not displayed within "+implicitlyWaitTime+" seconds");
+					return validate_Status;
+				}
+				if(!validate_Status) {
+					testStepFailed(shipmentNo+" shipment number "+taskName+" is not present in my task tab");
+				}
+			} catch (Exception e) {
+				testStepFailed("Failed to search data in my task");
+				writeToLogFile("ERROR", "Failed to search data in my task.ERROR:"+e.getMessage());
+
+			}
+			return validate_Status;
+		}
+		
+		public void enterTextIntosearchBox(String labelName, String value) {
+			try {
+				String labelXpath = "Label#xpath= //span[contains(text(),'"+labelName+"')]//following::div[2]//input";
+				//span[contains(text(),'Consignor')]//following::div[2]//input
+				WebElement labelField = findWebElement(labelXpath);
+				labelField.clear();
+				labelField.sendKeys(value);
+				waitForAngularLoad();
+				waitTime(3);
+				labelField.sendKeys(Keys.ENTER);
+				testStepPassed("[" + value + "] is entered into Textfield [" + labelName + "]");
+			} catch (Exception e) {
+				testStepFailed("[-] FAIL :: '" + e.getClass() + "' thrown, please do check log file for more details");
+				writeToLogFile("ERROR", "[E] :: Exception thrown: " + e);
+			}
+		}
+		
+		public void QuickSearchField(String inputLabel, String inputValue, boolean withTab) {
+			try {
+				if (isElementPresent(GOR.textbox1)) {
+					List<WebElement> tab_labels = findWebElements(GOR.textbox1);
+					for (int label = 0; label < tab_labels.size(); label++) {
+						String label_text = tab_labels.get(label).getAttribute("placeholder").trim();
+						if (label_text.equals(inputLabel)) {
+							if (tab_labels.get(label).isDisplayed()) {
+								tab_labels.get(label).clear();
+								tab_labels.get(label).sendKeys(inputValue);
+								if (withTab) {
+									clickTab(tab_labels.get(label));
+								}
+								testStepPassed("\"" + inputValue + "\" is entered into the " + inputLabel + " field.");
+								break;
+							}
+						} else if (label == (tab_labels.size() - 1)) {
+							testStepFailed("Unable to find the " + inputLabel + ".");
+						}
+					}
+				}
+			} catch (Exception e) {
+				testStepFailed("Unable to find the " + inputLabel + ".");
+			}
+		}
+		
+		public void enterTextIntosearchBoxconsignee(String labelName, String value) {
+			try {
+				String labelXpath = "Label#xpath= 	 //span[contains(text(),'"+labelName+"')]//following::div[2]//input[@CLASS='form-control input-sm ng-pristine ng-untouched ng-valid ng-valid-editable ng-empty']";
+				WebElement labelField = findWebElement(labelXpath);
+				labelField.clear();
+				labelField.sendKeys(value);
+				waitForAngularLoad();
+				waitTime(3);
+				labelField.sendKeys(Keys.ENTER);
+				testStepPassed("[" + value + "] is entered into Textfield [" + labelName + "]");
+			} catch (Exception e) {
+				testStepFailed("[-] FAIL :: '" + e.getClass() + "' thrown, please do check log file for more details");
+				writeToLogFile("ERROR", "[E] :: Exception thrown: " + e);
+			}
+		}
+
+		public void enterInputWithTab1(String inputLabel, String inputValue, boolean withTab) {
+			try {
+				if (isElementPresent(GOR.textbox2)) {
+					List<WebElement> tab_labels = findWebElements(GOR.textbox2);
+					for (int label = 0; label < tab_labels.size(); label++) {
+						String label_text = tab_labels.get(label).getAttribute("placeholder").trim();
+						if (label_text.equals(inputLabel)) {
+							if (isElementDisplay(tab_labels.get(label))) {
+								tab_labels.get(label).clear();
+								tab_labels.get(label).sendKeys(inputValue);
+								if (withTab) {
+									clickTab(tab_labels.get(label));
+								}
+								testStepPassed("\"" + inputValue + "\"  is entered into the text field.");
+								break;
+							}
+						} else if (label == (tab_labels.size() - 1)) {
+							testStepFailed("Unable to find the " + inputLabel + ".");
+						}
+					}
+				}
+			} catch (Exception e) {
+				testStepFailed("Unable to find the " + inputLabel + ".");
+			}
+		}
+
+}
+
+
+
